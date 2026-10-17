@@ -14,13 +14,14 @@ namespace HumPer
         public MetaXRAudioSource audioMeta;      // for the gain boost
         public Transform debugSphere;            // shown after a trial in Debug mode only
         public AudioClip clip;
-        [Range(0f, 20f)] public float gainBoostDb = 20f;
+        /// <summary>Meta gain boost currently set on the stimulus' MetaXRAudioSource (inspector value; this script does not change it).</summary>
+        public float GainBoostDb => audioMeta != null ? audioMeta.GainBoostDb : 0f;
 
         Vector3 _origin;
         Quaternion _yaw = Quaternion.identity;
         float _radius = 1f;
 
-        /// <summary>Level of the audio stimulus in the software chain: clip RMS (dBFS) + gain boost. Volume stays at unity.</summary>
+        /// <summary>Level of the audio stimulus in the software chain: clip RMS (dBFS) + the Meta gain boost value. Volume stays at unity.</summary>
         public float LevelDbfs { get; private set; } = -200f;
 
         void Awake()
@@ -32,8 +33,7 @@ namespace HumPer
             // The radius is locked, so no distance attenuation is wanted (practice 1.2 m vs trials 1.0 m must sound equally loud).
             audioSource.rolloffMode = AudioRolloffMode.Custom;
             audioSource.SetCustomCurve(AudioSourceCurveType.CustomRolloff, AnimationCurve.Constant(0f, 500f, 1f));
-            if (audioMeta != null) audioMeta.GainBoostDb = gainBoostDb;
-            LevelDbfs = ClipLevels.RmsDbfs(audioSource.clip) + gainBoostDb;
+            LevelDbfs = ClipLevels.RmsDbfs(audioSource.clip) + GainBoostDb;
             HideAll();
         }
 

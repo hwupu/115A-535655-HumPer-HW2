@@ -25,7 +25,9 @@ namespace HumPer
             ["practice_again"] = ("Practice again", "再練習一次"),
             ["ready"] = ("I'm ready to begin the experiment", "我準備好了，開始實驗"),
             ["gate_hint"] = ("Please look straight ahead", "請直視前方"),
-            ["practice_done"] = ("Practice finished.\n(The next stage is not built yet.)", "練習結束。\n（下一階段尚未建置。）"),
+            ["block_done"] = ("Part {0} of 3 completed.\nPlease take a moment to rest.", "第 {0} 部分（共 3 部分）已完成。\n請稍作休息。"),
+            ["continue"] = ("Continue", "繼續"),
+            ["thanks"] = ("Thank you for participating!", "感謝您的參與！"),
         };
 
         public static void Set(Language language)

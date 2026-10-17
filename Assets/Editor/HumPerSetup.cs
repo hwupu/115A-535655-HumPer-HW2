@@ -264,10 +264,18 @@ namespace HumPer.EditorTools
             LocalizeLabel(readyLabel, "ready");
             refs.resultPanel = result.gameObject;
 
-            // --- temporary end of the practice stage ---
-            var done = Panel(go.transform, "Practice - Done (temp)", dark);
-            LocalizedLabel(done, "Text", "practice_done", 52, Vector2.zero, new Vector2(880, 300));
-            refs.donePanel = done.gameObject;
+            // --- rest screen between the three conditions ---
+            var block = Panel(go.transform, "Experiment - Rest Between Conditions", dark);
+            var blockText = LocalizedLabel(block, "Text", "block_done", 48, new Vector2(0, 100), new Vector2(880, 300));
+            refs.blockDoneText = blockText.GetComponent<LocalizedText>();
+            refs.continueButton = MakeButton(block, "Continue", "", 42, new Vector2(0, -200), new Vector2(400, 110), green, out var continueLabel);
+            LocalizeLabel(continueLabel, "continue");
+            refs.blockDonePanel = block.gameObject;
+
+            // --- end of the experiment ---
+            var thanks = Panel(go.transform, "Experiment - Thank You", dark);
+            LocalizedLabel(thanks, "Text", "thanks", 64, Vector2.zero, new Vector2(880, 300));
+            refs.thanksPanel = thanks.gameObject;
 
             // --- Debug test bench (shown between trials) ---
             var bench = Panel(go.transform, "Debug - Test Bench", dark);
@@ -443,7 +451,6 @@ namespace HumPer.EditorTools
             controller.audioMeta = audio.GetComponent<MetaXRAudioSource>();
             controller.debugSphere = sphere.transform;
             controller.clip = clip;
-            controller.gainBoostDb = 20f;
 
             // Acoustic conditions: reverb = EnableAcoustics on the stimulus; noisy = the three Spatial Audio background blocks
             // (left, right, back) with the three background recordings (SFX-C-02..04, sorted by name).
@@ -476,7 +483,7 @@ namespace HumPer.EditorTools
             flow.rig = rig;
 
             MarkSceneDirty();
-            Debug.Log("[HumPer] Practice stage wired (stimulus clip: " + (clip != null ? clip.name : "none") + ", gain boost 20 dB).");
+            Debug.Log("[HumPer] Practice stage wired (stimulus clip: " + (clip != null ? clip.name : "none") + ").");
         }
 
         /// <summary>Logs every unassigned object reference on the HumPer components. Menu: HumPer/Validate Setup.</summary>

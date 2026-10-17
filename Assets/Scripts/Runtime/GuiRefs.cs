@@ -17,7 +17,10 @@ namespace HumPer
         public GameObject gateHint;
         public GameObject resultPanel;          // practice again / ready
         public Button againButton, readyButton;
-        public GameObject donePanel;            // temporary end of the practice stage
+        public GameObject blockDonePanel;       // rest screen between the three conditions
+        public LocalizedText blockDoneText;
+        public Button continueButton;
+        public GameObject thanksPanel;          // end of the experiment
         public DebugPanel debugPanel;           // Debug test bench (between trials)
 
         [Header("HUD canvas (small strip above the stimuli)")]
@@ -34,7 +37,7 @@ namespace HumPer
         void Awake()
         {
             LocalizedText.CjkFont = cjkFont;
-            _panels = new[] { menu.gameObject, languagePanel, introPanel, gatePanel, resultPanel, donePanel, debugPanel.gameObject };
+            _panels = new[] { menu.gameObject, languagePanel, introPanel, gatePanel, resultPanel, blockDonePanel, thanksPanel, debugPanel.gameObject };
             HideAll();
             ShowHud(null);
         }

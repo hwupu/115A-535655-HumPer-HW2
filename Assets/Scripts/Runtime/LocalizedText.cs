@@ -33,6 +33,12 @@ namespace HumPer
 
         void OnDisable() => Localization.Changed -= Refresh;
 
+        public void SetArgs(params object[] newArgs)
+        {
+            args = newArgs;
+            Refresh();
+        }
+
         public void Refresh()
         {
             if (_text == null) _text = GetComponent<Text>();

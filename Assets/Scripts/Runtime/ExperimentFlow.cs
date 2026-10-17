@@ -30,11 +30,12 @@ namespace HumPer
 
         [Header("Experiment trial geometry")]
         public float trialRadiusM = 1f;
-        public float[] visualPositionsDeg = { -37.5f, -22.5f, -7.5f, 7.5f, 22.5f, 37.5f };
+        public float[] leftVisualPoolDeg = { -37.5f, -22.5f, -7.5f };
+        public float[] rightVisualPoolDeg = { 7.5f, 22.5f, 37.5f };
         public float audioStartDeg = 60f; // +/-60, alternating
 
         [Header("Task")]
-        public float audioRateDegPerSec = 5f;
+        public float audioRateDegPerSec = 10f;
         public float azimuthLimitDeg = 90f;
         public float confirmIgnoreSec = 0.3f;
         public float interTrialSec = 0.6f;
@@ -108,7 +109,35 @@ namespace HumPer
             }
             _log.ConditionEvent("practice_end", "practice", "trials=" + number);
 
-            gui.Show(gui.donePanel); // temporary: the three experiment conditions come next
+            // ---- the experiment: Quiet, Reverb, Noisy; 6 trials each; a rest screen between conditions ----
+            int seed = (int)(DateTime.Now.Ticks & 0x7FFFFFFF);
+            _log.Event("experiment_begin", "seed=" + seed);
+            var order = TrialPlanner.ConditionOrder;
+            for (int c = 0; c < order.Length; c++)
+            {
+                if (c > 0)
+                {
+                    gui.blockDoneText.SetArgs(c);
+                    gui.Show(gui.blockDonePanel);
+                    yield return WaitForAny(_ => { }, gui.continueButton);
+                    gui.HideAll();
+                }
+
+                var condition = order[c];
+                var plan = TrialPlanner.PlanCondition(condition, seed + c, leftVisualPoolDeg, rightVisualPoolDeg, audioStartDeg, trialRadiusM);
+                acoustics.SetCondition(condition, Head.position, Yaw); // Noisy: the background plays for the whole block
+                _log.ConditionEvent("condition_begin", condition.ToString().ToLowerInvariant());
+                foreach (var spec in plan)
+                    yield return RunTrial(spec, showPracticeHint: false, sphereAlways: false, feedback: false, hudInfo: null);
+                _log.ConditionEvent("condition_end", condition.ToString().ToLowerInvariant());
+                acoustics.StopAll();
+                stimuli.HideAll();
+            }
+
+            _log.Event("experiment_end");
+            _log.Dispose();
+            _log = null;
+            gui.Show(gui.thanksPanel);
         }
 
         // ==== Debug test bench ====================================================================================
@@ -158,7 +187,7 @@ namespace HumPer
                     else
                     {
                         // experiment-style geometry: random visual position (never 0), audio starts at +60 / -60 alternating
-                        float visual = visualPositionsDeg[rng.Next(visualPositionsDeg.Length)];
+                        float visual = rng.Next(2) == 0 ? leftVisualPoolDeg[rng.Next(leftVisualPoolDeg.Length)] : rightVisualPoolDeg[rng.Next(rightVisualPoolDeg.Length)];
                         spec = new TrialSpec(condition, ++number, rightSide ? audioStartDeg : -audioStartDeg, visual, trialRadiusM);
                         rightSide = !rightSide;
                     }
@@ -291,7 +320,7 @@ namespace HumPer
             _log = new ExperimentLog(writer, () => DateTime.Now, participantId, debug, line => Debug.Log("[HumPer] " + line));
             Debug.Log("[HumPer] Logging to " + path);
             _log.Event("session_start", "app=" + Application.version + ";device=" + SystemInfo.deviceModel +
-                                        ";stimulus_gain_boost_db=" + stimuli.gainBoostDb);
+                                        ";stimulus_gain_boost_db=" + stimuli.GainBoostDb);
         }
     }
 }

@@ -7,6 +7,38 @@ namespace HumPer.Tests
 {
     public class CoreTests
     {
+        static readonly float[] Left = { -37.5f, -22.5f, -7.5f };
+        static readonly float[] Right = { 7.5f, 22.5f, 37.5f };
+
+        [Test]
+        public void Planner_UsesEachVisualPositionOnce_AlternatesAudio_FollowsSideSequence()
+        {
+            var t = TrialPlanner.PlanCondition(Condition.Quiet, 123, Left, Right, 60f, 1f);
+            Assert.AreEqual(6, t.Count);
+            CollectionAssert.AreEquivalent(Left.Concat(Right).ToArray(), t.Select(x => x.VisualAzDeg).ToArray());
+            CollectionAssert.AreEqual(new[] { 60f, -60f, 60f, -60f, 60f, -60f }, t.Select(x => x.AudioStartAzDeg).ToArray());
+            CollectionAssert.AreEqual(new[] { false, false, true, true, false, true }, t.Select(x => x.VisualAzDeg > 0).ToArray());
+            CollectionAssert.AreEqual(new[] { 1, 2, 3, 4, 5, 6 }, t.Select(x => x.Index).ToArray());
+            Assert.IsTrue(t.All(x => x.Condition == Condition.Quiet && x.RadiusM == 1f));
+        }
+
+        [Test]
+        public void Planner_IsDeterministicPerSeed_AndVariesAcrossSeeds()
+        {
+            var a = TrialPlanner.PlanCondition(Condition.Reverb, 7, Left, Right, 60f, 1f).Select(x => x.VisualAzDeg).ToArray();
+            var b = TrialPlanner.PlanCondition(Condition.Reverb, 7, Left, Right, 60f, 1f).Select(x => x.VisualAzDeg).ToArray();
+            CollectionAssert.AreEqual(a, b);
+            bool anyDifferent = Enumerable.Range(0, 20).Any(s =>
+                !TrialPlanner.PlanCondition(Condition.Reverb, s, Left, Right, 60f, 1f).Select(x => x.VisualAzDeg).SequenceEqual(a));
+            Assert.IsTrue(anyDifferent);
+        }
+
+        [Test]
+        public void ConditionOrder_IsQuietReverbNoisy()
+        {
+            CollectionAssert.AreEqual(new[] { Condition.Quiet, Condition.Reverb, Condition.Noisy }, TrialPlanner.ConditionOrder);
+        }
+
         [Test]
         public void StepAzimuth_RotatesAtRate_AndClamps()
         {
