@@ -536,12 +536,12 @@ namespace HumPer.EditorTools
             importer.SaveAndReimport();
         }
 
-        // ---- Temp step: tidy the scene hierarchy, place the spatial audio, add the visual stimulus box --------
+        // ---- Hot Fix step: tidy the scene hierarchy, place the spatial audio, add the visual stimulus cardboard ----
 
         const float EyeLevelM = 1.2f;       // seated eye / ear height used for audio sources (runtime will use the real head height)
         const float StimulusRadiusM = 2f;     // experiment trials: audio, visual and background clips are all 2 m from the head
 
-        [MenuItem("HumPer/Temp - Organize Scene Hierarchy, Place Audio, Add Visual Box", priority = 100)]
+        [MenuItem("HumPer/Hot Fix - Organize Hierarchy, Place Audio, Add Visual Cardboard", priority = 100)]
         public static void OrganizeHierarchy()
         {
             var scene = EditorSceneManager.GetActiveScene();
