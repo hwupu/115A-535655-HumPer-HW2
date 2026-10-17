@@ -44,8 +44,9 @@ namespace HumPer
             Place(rig);
         }
 
+        /// <summary>Place (or re-place) the canvas in front of the rig, e.g. after a recenter.</summary>
         [ContextMenu("Place now")]
-        void PlaceNow()
+        public void Place()
         {
             var rig = FindFirstObjectByType<OVRCameraRig>();
             if (rig != null) Place(rig);

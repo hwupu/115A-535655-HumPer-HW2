@@ -24,6 +24,7 @@ namespace HumPer.EditorTools
         public const string GroupAudio = "Audio";
         public const string GroupEnvironment = "Environment";
         public const string GroupStimuli = "Stimuli";
+        public const string GroupExperiment = "Experiment";
         public const string GroupUI = "UI";
 
         const string VisualBoxName = "Visual Stimulus (placeholder box)";
@@ -175,9 +176,9 @@ namespace HumPer.EditorTools
             else Debug.LogWarning("[HumPer] Lightmap bake failed.");
         }
 
-        // ---- Step 3: GUI (stage 1: participant ID, Start, Debug) ----------------------------------------------
+        // ---- Step 3: GUI (menu, language, practice instructions, head gate, practice result, HUD) -------------
 
-        [MenuItem("HumPer/Step 3 - GUI: Stage 1 menu (OVROverlayCanvas)", priority = 3)]
+        [MenuItem("HumPer/Step 3 - GUI: Menu, language, practice screens, HUD (OVROverlayCanvas)", priority = 3)]
         public static void AddGui()
         {
             EnsureLayerName(GuiPanelPlacer.HiddenCanvasLayer, "HiddenOverlayCanvas");
@@ -185,6 +186,7 @@ namespace HumPer.EditorTools
 
             var ui = Group(GroupUI);
             DestroyEverywhere("GUI");
+            DestroyEverywhere("HUD");
             DestroyEverywhere("GUI Test Panel");
             DestroyEverywhere("UI Pointer");
 
@@ -195,17 +197,20 @@ namespace HumPer.EditorTools
             rt.sizeDelta = new Vector2(1000, 700);
             rt.localScale = Vector3.one * 0.002f; // 1000 px = 2 m, 700 px = 1.4 m
             go.transform.position = new Vector3(0f, 1.2f, 2f); // editor preview; GuiPanelPlacer moves it at runtime
+            var refs = go.AddComponent<GuiRefs>();
+            var dark = new Color(0.09f, 0.1f, 0.14f, 1f);
+            var green = new Color(0.13f, 0.42f, 0.24f, 1f);
+            var gray = new Color(0.22f, 0.25f, 0.32f, 1f);
 
-            // --- stage 1: menu ---
-            var stage = Panel(go.transform, "Stage 1 - Menu", new Color(0.09f, 0.1f, 0.14f, 1f));
+            // --- stage 1: menu (experimenter, English only) ---
+            var stage = Panel(go.transform, "Stage 1 - Menu", dark);
             Label(stage, "Title", "Participant ID", 48, new Vector2(0, 240), new Vector2(800, 70));
             var idButton = MakeButton(stage, "ID Field", "(tap to enter)", 44, new Vector2(0, 150), new Vector2(620, 100),
                                       new Color(0.16f, 0.18f, 0.24f, 1f), out var idLabel);
             var idField = idButton.gameObject.AddComponent<ParticipantIdField>();
             idField.label = idLabel;
             idField.hint = Label(stage, "ID Hint", "", 24, new Vector2(0, 80), new Vector2(920, 50));
-            var start = MakeButton(stage, "Start Experiment", "Start Experiment", 38, new Vector2(-220, -50), new Vector2(400, 120),
-                                   new Color(0.13f, 0.42f, 0.24f, 1f), out _);
+            var start = MakeButton(stage, "Start Experiment", "Start Experiment", 38, new Vector2(-220, -50), new Vector2(400, 120), green, out _);
             var debug = MakeButton(stage, "Debug", "Debug", 38, new Vector2(220, -50), new Vector2(400, 120),
                                    new Color(0.42f, 0.32f, 0.12f, 1f), out _);
             var status = Label(stage, "Status", "", 30, new Vector2(0, -230), new Vector2(900, 80));
@@ -214,21 +219,129 @@ namespace HumPer.EditorTools
             menu.startButton = start;
             menu.debugButton = debug;
             menu.statusText = status;
+            refs.menu = menu;
+
+            // --- stage 2: language ---
+            var lang = Panel(go.transform, "Stage 2 - Language", dark);
+            LocalizedLabel(lang, "Title", "lang_title", 56, new Vector2(0, 150), new Vector2(800, 200));
+            refs.chineseButton = MakeButton(lang, "Chinese (Taiwan)", "中文（台灣）", 48, new Vector2(-230, -100), new Vector2(400, 140), gray, out var zhLabel);
+            zhLabel.gameObject.AddComponent<LocalizedText>().alwaysCjk = true;
+            refs.englishButton = MakeButton(lang, "English", "English", 48, new Vector2(230, -100), new Vector2(400, 140), gray, out _);
+            refs.languagePanel = lang.gameObject;
+
+            // --- practice instructions ---
+            var intro = Panel(go.transform, "Practice - Instructions", dark);
+            LocalizedLabel(intro, "Text", "practice_intro", 40, new Vector2(0, 70), new Vector2(880, 460));
+            refs.startPracticeButton = MakeButton(intro, "Start Practice", "", 42, new Vector2(0, -270), new Vector2(460, 100), green, out var startLabel);
+            LocalizeLabel(startLabel, "practice_start");
+            refs.introPanel = intro.gameObject;
+
+            // --- head alignment gate: no background, just a fixation dot at the center (straight ahead) ---
+            var gate = new GameObject("Gate - Look Straight Ahead", typeof(RectTransform));
+            gate.transform.SetParent(go.transform, false);
+            var grt = (RectTransform)gate.transform;
+            grt.anchorMin = Vector2.zero;
+            grt.anchorMax = Vector2.one;
+            grt.offsetMin = grt.offsetMax = Vector2.zero;
+            var dotGo = new GameObject("Fixation Dot", typeof(RectTransform), typeof(Image));
+            dotGo.transform.SetParent(gate.transform, false);
+            ((RectTransform)dotGo.transform).sizeDelta = new Vector2(26, 26);
+            var dot = dotGo.GetComponent<Image>();
+            dot.sprite = AssetDatabase.GetBuiltinExtraResource<Sprite>("UI/Skin/Knob.psd");
+            dot.color = new Color(0.15f, 0.15f, 0.15f, 1f);
+            dot.raycastTarget = false;
+            var hint = LocalizedLabel(gate.transform, "Hint", "gate_hint", 40, new Vector2(0, -70), new Vector2(800, 80));
+            hint.color = new Color(0.1f, 0.1f, 0.1f, 1f);
+            refs.gatePanel = gate;
+            refs.gateHint = hint.gameObject;
+
+            // --- practice result: again / ready ---
+            var result = Panel(go.transform, "Practice - Result", dark);
+            LocalizedLabel(result, "Text", "practice_result", 46, new Vector2(0, 130), new Vector2(880, 200));
+            refs.againButton = MakeButton(result, "Practice Again", "", 38, new Vector2(-250, -130), new Vector2(430, 150), gray, out var againLabel);
+            LocalizeLabel(againLabel, "practice_again");
+            refs.readyButton = MakeButton(result, "Ready", "", 34, new Vector2(250, -130), new Vector2(430, 150), green, out var readyLabel);
+            LocalizeLabel(readyLabel, "ready");
+            refs.resultPanel = result.gameObject;
+
+            // --- temporary end of the practice stage ---
+            var done = Panel(go.transform, "Practice - Done (temp)", dark);
+            LocalizedLabel(done, "Text", "practice_done", 52, Vector2.zero, new Vector2(880, 300));
+            refs.donePanel = done.gameObject;
+
+            // --- Debug test bench (shown between trials) ---
+            var bench = Panel(go.transform, "Debug - Test Bench", dark);
+            var benchPanel = bench.gameObject.AddComponent<DebugPanel>();
+            Label(bench, "Title", "Debug test bench", 44, new Vector2(0, 290), new Vector2(800, 60));
+            benchPanel.statusText = Label(bench, "Status", "", 26, new Vector2(0, 220), new Vector2(940, 80));
+            benchPanel.quietButton = MakeButton(bench, "Quiet", "Quiet", 38, new Vector2(-300, 100), new Vector2(280, 100), gray, out _);
+            benchPanel.reverbButton = MakeButton(bench, "Reverb", "Reverb", 38, new Vector2(0, 100), new Vector2(280, 100), gray, out _);
+            benchPanel.noisyButton = MakeButton(bench, "Noisy", "Noisy", 38, new Vector2(300, 100), new Vector2(280, 100), gray, out _);
+            benchPanel.sphereToggleButton = MakeButton(bench, "Sphere Toggle", "", 34, new Vector2(0, -20), new Vector2(700, 90), gray, out benchPanel.sphereToggleLabel);
+            benchPanel.runTrialButton = MakeButton(bench, "Run Trial", "Run trial", 38, new Vector2(-230, -140), new Vector2(440, 100), green, out _);
+            benchPanel.practiceTrialButton = MakeButton(bench, "Practice Trial", "Practice-style trial", 34, new Vector2(230, -140), new Vector2(440, 100), gray, out _);
+            benchPanel.backButton = MakeButton(bench, "Back", "Back to menu", 34, new Vector2(0, -270), new Vector2(400, 90),
+                                               new Color(0.42f, 0.2f, 0.2f, 1f), out _);
+            benchPanel.SetCondition(Condition.Quiet);
+            benchPanel.SetSphereAlways(false);
+            refs.debugPanel = benchPanel;
+
+            var fontGuid = AssetDatabase.FindAssets("t:Font", new[] { "Assets/Fonts" }).FirstOrDefault();
+            if (fontGuid != null) refs.cjkFont = AssetDatabase.LoadAssetAtPath<Font>(AssetDatabase.GUIDToAssetPath(fontGuid));
+            else Debug.LogWarning("[HumPer] No font in Assets/Fonts: Chinese text will use an OS font if the headset has one. Add Noto Sans TC (.ttf/.otf) to be safe.");
 
             go.AddComponent<OVROverlayCanvas>();
-            go.AddComponent<GuiPanelPlacer>();
-            // The source canvas lives on a layer that the eye cameras do not render; only the overlay shows it.
+            var mainPlacer = go.AddComponent<GuiPanelPlacer>();
+            refs.mainPlacer = mainPlacer;
+
+            // --- HUD: a small strip above the stimuli (practice hints, Debug feedback) ---
+            var hud = new GameObject("HUD", typeof(RectTransform), typeof(Canvas));
+            hud.transform.SetParent(ui, false);
+            hud.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+            var hrt = (RectTransform)hud.transform;
+            hrt.sizeDelta = new Vector2(1000, 110);
+            hrt.localScale = Vector3.one * 0.002f; // 2 m x 0.22 m
+            hud.transform.position = new Vector3(0f, 2.3f, 2f);
+            Panel(hud.transform, "Background", new Color(0f, 0f, 0f, 0.6f));
+            var hudText = LocalizedLabel(hud.transform, "Text", "practice_hud", 34, Vector2.zero, new Vector2(960, 100));
+            hud.AddComponent<OVROverlayCanvas>();
+            var hudPlacer = hud.AddComponent<GuiPanelPlacer>();
+            hudPlacer.heightOffsetM = 1.05f; // ~28 deg above eye level: above the figure's head (24 deg at 1.2 m)
+            refs.hudRoot = hud;
+            refs.hudPlacer = hudPlacer;
+            refs.hudText = hudText;
+            refs.hudLocalized = hudText.GetComponent<LocalizedText>();
+
+            // The source canvases live on a layer that the eye cameras do not render; only the overlays show them.
             go.GetComponent<OVROverlayCanvas>().SetCanvasLayer(GuiPanelPlacer.HiddenCanvasLayer, true);
+            hud.GetComponent<OVROverlayCanvas>().SetCanvasLayer(GuiPanelPlacer.HiddenCanvasLayer, true);
             foreach (var cam in Object.FindObjectsByType<Camera>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 cam.cullingMask &= ~((1 << GuiPanelPlacer.HiddenCanvasLayer) | (1 << GuiPanelPlacer.OverlayRenderLayer));
 
             var pointer = new GameObject("UI Pointer");
             pointer.transform.SetParent(ui, false);
             Directory.CreateDirectory(MaterialsDir);
-            pointer.AddComponent<UiPointer>().laserMaterial = Mat("Laser", Color.white, unlit: true); // URP Unlit: renders in both eyes (single-pass stereo)
+            pointer.AddComponent<UiPointer>().laserMaterial = Mat("Laser", Color.white, unlit: true); // URP Unlit: renders in both eyes
+
+            // Step 4 refers to this GUI; re-wire it automatically if it already exists.
+            if (Object.FindFirstObjectByType<ExperimentFlow>(FindObjectsInactive.Include) != null) SetupPractice();
 
             MarkSceneDirty();
-            Debug.Log("[HumPer] GUI stage 1 (menu) added under '" + GroupUI + "'.");
+            Debug.Log("[HumPer] GUI built under '" + GroupUI + "' (menu, language, practice screens, HUD).");
+        }
+
+        static Text LocalizedLabel(Transform parent, string name, string key, int size, Vector2 pos, Vector2 box)
+        {
+            var t = Label(parent, name, "", size, pos, box);
+            LocalizeLabel(t, key);
+            return t;
+        }
+
+        static void LocalizeLabel(Text t, string key)
+        {
+            var l = t.gameObject.GetComponent<LocalizedText>() ?? t.gameObject.AddComponent<LocalizedText>();
+            l.key = key;
+            t.text = Localization.Get(key);
         }
 
         static void EnableSystemKeyboard()
@@ -290,6 +403,131 @@ namespace HumPer.EditorTools
             return button;
         }
 
+        // ---- Step 4: practice stage wiring (stimulus controller + experiment flow) ------------------------------
+
+        const string StimulusClipSearch = "SFX-C-01";
+
+        [MenuItem("HumPer/Step 4 - Practice: stimulus controller + experiment flow", priority = 4)]
+        public static void SetupPractice()
+        {
+            var refs = Object.FindFirstObjectByType<GuiRefs>(FindObjectsInactive.Include);
+            var rig = Object.FindFirstObjectByType<OVRCameraRig>(FindObjectsInactive.Include);
+            var box = FindByName(VisualBoxName);
+            var audio = FindByName("[BuildingBlock] Spatial Audio Stimuli");
+            if (refs == null) { Debug.LogError("[HumPer] Run Step 3 (GUI) first."); return; }
+            if (rig == null) { Debug.LogError("[HumPer] No OVRCameraRig: add the Camera Rig building block."); return; }
+            if (box == null || audio == null) { Debug.LogError("[HumPer] Run the Temp step first (visual box + spatial audio placement)."); return; }
+
+            var group = Group(GroupExperiment);
+            DestroyEverywhere("Stimulus Controller");
+            DestroyEverywhere("Experiment Flow");
+            DestroyEverywhere("Debug Audio Sphere");
+
+            // Debug sphere: marks where the audio stimulus ended up; only shown in Debug mode, hidden at the start of each trial.
+            var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sphere.name = "Debug Audio Sphere";
+            sphere.transform.SetParent(Group(GroupStimuli), false);
+            sphere.transform.localScale = Vector3.one * 0.15f;
+            Object.DestroyImmediate(sphere.GetComponent<Collider>());
+            sphere.GetComponent<Renderer>().sharedMaterial = Mat("Debug_Sphere", new Color(1f, 0.45f, 0.1f), unlit: true);
+            sphere.SetActive(false);
+
+            var clip = FindClip(StimulusClipSearch);
+            if (clip == null) Debug.LogWarning("[HumPer] No audio clip named '" + StimulusClipSearch + "*' in Assets/Audio; the stimulus keeps the building block's clip.");
+            else ForceDecompressOnLoad(clip);
+
+            var controller = new GameObject("Stimulus Controller").AddComponent<StimulusController>();
+            controller.transform.SetParent(group, false);
+            controller.visual = box.transform;
+            controller.audioSource = audio.GetComponent<AudioSource>();
+            controller.audioMeta = audio.GetComponent<MetaXRAudioSource>();
+            controller.debugSphere = sphere.transform;
+            controller.clip = clip;
+            controller.gainBoostDb = 20f;
+
+            // Acoustic conditions: reverb = EnableAcoustics on the stimulus; noisy = the three Spatial Audio background blocks
+            // (left, right, back) with the three background recordings (SFX-C-02..04, sorted by name).
+            DestroyEverywhere("Acoustic Conditions");
+            var conditions = new GameObject("Acoustic Conditions").AddComponent<AcousticConditions>();
+            conditions.transform.SetParent(group, false);
+            conditions.stimulusMeta = audio.GetComponent<MetaXRAudioSource>();
+            var backgroundObjects = new[]
+            {
+                FindByName("[BuildingBlock] Spatial Audio Background Left"),
+                FindByName("[BuildingBlock] Spatial Audio Background Right"),
+                FindByName("[BuildingBlock] Spatial Audio Background Back"),
+            };
+            var backgroundClips = new[] { FindClip("SFX-C-02"), FindClip("SFX-C-03"), FindClip("SFX-C-04") };
+            conditions.backgroundSources = backgroundObjects.Select(o => o != null ? o.GetComponent<AudioSource>() : null).ToArray();
+            conditions.backgroundMeta = backgroundObjects.Select(o => o != null ? o.GetComponent<MetaXRAudioSource>() : null).ToArray();
+            conditions.backgroundClips = backgroundClips;
+            for (int i = 0; i < 3; i++)
+            {
+                if (backgroundObjects[i] == null) Debug.LogError("[HumPer] Spatial Audio background block " + i + " not found.");
+                if (backgroundClips[i] == null) Debug.LogWarning("[HumPer] Background clip SFX-C-0" + (i + 2) + " not found in Assets/Audio.");
+                else ForceDecompressOnLoad(backgroundClips[i]);
+            }
+
+            var flow = new GameObject("Experiment Flow").AddComponent<ExperimentFlow>();
+            flow.transform.SetParent(group, false);
+            flow.gui = refs;
+            flow.stimuli = controller;
+            flow.acoustics = conditions;
+            flow.rig = rig;
+
+            MarkSceneDirty();
+            Debug.Log("[HumPer] Practice stage wired (stimulus clip: " + (clip != null ? clip.name : "none") + ", gain boost 20 dB).");
+        }
+
+        /// <summary>Logs every unassigned object reference on the HumPer components. Menu: HumPer/Validate Setup.</summary>
+        [MenuItem("HumPer/Validate Setup", priority = 101)]
+        public static void ValidateSetup()
+        {
+            int problems = 0;
+            foreach (var behaviour in Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (behaviour == null || behaviour.GetType().Namespace != "HumPer") continue;
+                var so = new SerializedObject(behaviour);
+                for (var p = so.GetIterator(); p.NextVisible(true);)
+                {
+                    if (p.propertyType != SerializedPropertyType.ObjectReference || p.propertyPath == "m_Script") continue;
+                    if (p.objectReferenceValue != null) continue;
+                    // optional references
+                    if (p.name == "cjkFont" || p.name == "clip" || p.name == "hint" || p.name == "laserMaterial") continue;
+                    Debug.LogError("[HumPer] Validate: " + behaviour.GetType().Name + "." + p.propertyPath + " is not assigned (" + behaviour.name + ")", behaviour);
+                    problems++;
+                }
+            }
+            Debug.Log("[HumPer] Validate: " + (problems == 0 ? "OK, all references assigned." : problems + " problem(s)."));
+        }
+
+        static GameObject FindByName(string name) =>
+            Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .Where(t => t.name == name).Select(t => t.gameObject).FirstOrDefault();
+
+        static AudioClip FindClip(string nameContains)
+        {
+            foreach (var guid in AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/Audio" }))
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                if (Path.GetFileName(path).IndexOf(nameContains, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    return AssetDatabase.LoadAssetAtPath<AudioClip>(path);
+            }
+            return null;
+        }
+
+        /// <summary>The runtime measures the clip RMS (AudioClip.GetData), which needs Decompress On Load.</summary>
+        static void ForceDecompressOnLoad(AudioClip clip)
+        {
+            var importer = AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(clip)) as AudioImporter;
+            if (importer == null) return;
+            var s = importer.defaultSampleSettings;
+            if (s.loadType == AudioClipLoadType.DecompressOnLoad) return;
+            s.loadType = AudioClipLoadType.DecompressOnLoad;
+            importer.defaultSampleSettings = s;
+            importer.SaveAndReimport();
+        }
+
         // ---- Temp step: tidy the scene hierarchy, place the spatial audio, add the visual stimulus box --------
 
         const float EyeLevelM = 1.2f;       // seated eye / ear height used for audio sources (runtime will use the real head height)
@@ -310,8 +548,9 @@ namespace HumPer.EditorTools
                 else if (n == "[BuildingBlock] Spatial Audio Stimuli") target = GroupStimuli;
                 else if (n.StartsWith("[BuildingBlock] Spatial Audio")) target = GroupAudio;
                 else if (n == "Room" || n.StartsWith("Shoebox")) target = GroupEnvironment;
-                else if (n == "GUI" || n == "UI Pointer" || n == "GUI Test Panel") target = GroupUI;
-                else if (n.StartsWith("Visual Stimulus")) target = GroupStimuli;
+                else if (n == "GUI" || n == "HUD" || n == "UI Pointer" || n == "GUI Test Panel") target = GroupUI;
+                else if (n.StartsWith("Visual Stimulus") || n == "Debug Audio Sphere") target = GroupStimuli;
+                else if (n == "Stimulus Controller" || n == "Experiment Flow" || n == "Acoustic Conditions") target = GroupExperiment;
                 else if (n == "HumPer")
                 {
                     // old container from an earlier step: move its children, then remove it
@@ -333,7 +572,7 @@ namespace HumPer.EditorTools
 
             // Stable order of the groups.
             int i = 0;
-            foreach (var g in new[] { GroupXR, GroupAudio, GroupStimuli, GroupEnvironment, GroupUI })
+            foreach (var g in new[] { GroupXR, GroupAudio, GroupStimuli, GroupExperiment, GroupEnvironment, GroupUI })
             {
                 var go = FindRoot(g);
                 if (go != null) go.transform.SetSiblingIndex(i++);
@@ -396,7 +635,7 @@ namespace HumPer.EditorTools
         public static float AbsorptionForRt60(float w, float d, float h, float rt60) =>
             0.161f * (w * d * h) / (2f * (w * d + w * h + d * h) * rt60);
 
-        static bool IsGroup(string name) => name == GroupXR || name == GroupAudio || name == GroupStimuli || name == GroupEnvironment || name == GroupUI;
+        static bool IsGroup(string name) => name == GroupXR || name == GroupAudio || name == GroupStimuli || name == GroupExperiment || name == GroupEnvironment || name == GroupUI;
 
         static GameObject FindRoot(string name) =>
             EditorSceneManager.GetActiveScene().GetRootGameObjects().FirstOrDefault(g => g.name == name);
@@ -478,6 +717,8 @@ namespace HumPer.EditorTools
             AddGui();
             BuildRoom(new Vector3(8f, 3.5f, 10f), MetaXRAudioRoomAcousticProperties.MaterialPreset.Concrete, bake: true);
             OrganizeHierarchy();
+            SetupPractice();
+            ValidateSetup();
             EditorSceneManager.SaveOpenScenes();
             AssetDatabase.SaveAssets();
         }
