@@ -27,7 +27,8 @@ namespace HumPer.EditorTools
         public const string GroupExperiment = "Experiment";
         public const string GroupUI = "UI";
 
-        const string VisualBoxName = "Visual Stimulus (placeholder box)";
+        const string VisualBoxName = "Visual Stimulus (cardboard)";
+        const string LegacyVisualBoxName = "Visual Stimulus (placeholder box)";
         const string LightingSettingsPath = "Assets/Settings/ExperimentLighting.lighting";
         const string MaterialsDir = "Assets/Materials";
 
@@ -538,7 +539,7 @@ namespace HumPer.EditorTools
         // ---- Temp step: tidy the scene hierarchy, place the spatial audio, add the visual stimulus box --------
 
         const float EyeLevelM = 1.2f;       // seated eye / ear height used for audio sources (runtime will use the real head height)
-        const float StimulusRadiusM = 1f;
+        const float StimulusRadiusM = 2f;     // experiment trials: audio, visual and background clips are all 2 m from the head
 
         [MenuItem("HumPer/Temp - Organize Scene Hierarchy, Place Audio, Add Visual Box", priority = 100)]
         public static void OrganizeHierarchy()
@@ -622,15 +623,16 @@ namespace HumPer.EditorTools
             }
         }
 
-        /// <summary>Placeholder for the cardboard figure: 0.5 x 1.75 x 0.03 m box standing on the floor, 1 m straight ahead, facing the participant.</summary>
+        /// <summary>Placeholder cardboard (image to be added later): 0.25 m wide x 0.2 m high, centered at eye level, straight ahead, facing the participant.</summary>
         static void AddVisualStimulusBox()
         {
             DestroyEverywhere(VisualBoxName);
+            DestroyEverywhere(LegacyVisualBoxName);
             var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
             box.name = VisualBoxName;
             box.transform.SetParent(Group(GroupStimuli), false);
-            box.transform.position = new Vector3(0f, 1.75f / 2f, StimulusRadiusM);
-            box.transform.localScale = new Vector3(0.5f, 1.75f, 0.03f);
+            box.transform.position = new Vector3(0f, EyeLevelM, StimulusRadiusM);
+            box.transform.localScale = new Vector3(0.25f, 0.2f, 0.01f);
             box.GetComponent<Renderer>().sharedMaterial = Mat("Visual_Cardboard", new Color(0.78f, 0.65f, 0.45f));
             Object.DestroyImmediate(box.GetComponent<Collider>());
             box.SetActive(false); // hidden at the beginning; the experiment shows it per trial

@@ -5,7 +5,7 @@ namespace HumPer
     /// <summary>
     /// Switches the acoustic condition. Practice and Quiet are dry (no room reflections, no background); Reverb sends the stimulus
     /// into the Meta XR Audio shoebox room (EnableAcoustics); Noisy is dry plus three spatialized background recordings (left, right,
-    /// back; eye level; 1 m from the head) looping together at unity gain. The only software gain is the stimulus' Meta gain boost.
+    /// back; eye level; 2 m from the head) looping together at unity gain. The only software gain is the stimulus' Meta gain boost.
     /// </summary>
     public class AcousticConditions : MonoBehaviour
     {
@@ -14,7 +14,7 @@ namespace HumPer
         public MetaXRAudioSource[] backgroundMeta = new MetaXRAudioSource[0];
         public AudioClip[] backgroundClips = new AudioClip[0];
         public float[] backgroundAzimuthsDeg = { -90f, 90f, 180f };
-        public float backgroundRadiusM = 1f;
+        public float backgroundRadiusM = 2f;
 
         public Condition Current { get; private set; } = Condition.Quiet;
 

@@ -37,8 +37,8 @@ namespace HumPer
             HideAll();
         }
 
-        /// <summary>Capture the trial origin (head position, yaw reference) and place both stimuli.</summary>
-        public void Begin(Vector3 headPosition, Quaternion yawReference, float radiusM, float visualAzDeg, float audioAzDeg, float floorY)
+        /// <summary>Capture the trial origin (head position, yaw reference) and place both stimuli at head height on the circle.</summary>
+        public void Begin(Vector3 headPosition, Quaternion yawReference, float radiusM, float visualAzDeg, float audioAzDeg)
         {
             _origin = headPosition;
             _yaw = yawReference;
@@ -46,7 +46,7 @@ namespace HumPer
 
             var (vx, vz) = PolarMath.ToXZ(visualAzDeg, radiusM);
             Vector3 vp = _origin + _yaw * new Vector3(vx, 0f, vz);
-            vp.y = floorY;
+            vp.y = _origin.y; // the cardboard is centered at eye (head) height, like the audio
             visual.position = vp;
             Vector3 toOrigin = new Vector3(_origin.x - vp.x, 0f, _origin.z - vp.z);
             if (toOrigin.sqrMagnitude > 1e-6f) visual.rotation = Quaternion.LookRotation(toOrigin, Vector3.up); // face the participant

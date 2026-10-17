@@ -29,7 +29,7 @@ namespace HumPer
         public float practiceAudioStartAzDeg = 30f;
 
         [Header("Experiment trial geometry")]
-        public float trialRadiusM = 1f;
+        public float trialRadiusM = 2f;
         public float[] leftVisualPoolDeg = { -37.5f, -22.5f, -7.5f };
         public float[] rightVisualPoolDeg = { 7.5f, 22.5f, 37.5f };
         public float audioStartDeg = 60f; // +/-60, alternating
@@ -224,7 +224,7 @@ namespace HumPer
             yield return WaitForHeadAlignment();
 
             // Origin = head position now; yaw reference = rig forward; the figure stands on the floor (rig origin height).
-            stimuli.Begin(Head.position, Yaw, spec.RadiusM, spec.VisualAzDeg, spec.AudioStartAzDeg, rig.transform.position.y);
+            stimuli.Begin(Head.position, Yaw, spec.RadiusM, spec.VisualAzDeg, spec.AudioStartAzDeg);
             stimuli.ShowVisual(true);
             if (sphereAlways) stimuli.ShowDebugSphere(spec.AudioStartAzDeg);
             stimuli.PlayAudio();
