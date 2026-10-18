@@ -25,6 +25,11 @@ namespace HumPer
             if (statusText != null) statusText.text = "";
         }
 
+        public void SetStatus(string text)
+        {
+            if (statusText != null) statusText.text = text;
+        }
+
         void Choose(bool debug)
         {
             string id = idField != null ? idField.Value : "";

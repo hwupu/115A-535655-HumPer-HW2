@@ -13,6 +13,9 @@ namespace HumPer
         public Button chineseButton, englishButton;
         public GameObject introPanel;           // practice instructions
         public Button startPracticeButton;
+        public GameObject setupPanel;           // recenter / IPD / look-at-the-dot instructions before the practice
+        public LocalizedText setupText;
+        public Button setupContinueButton;
         public GameObject gatePanel;            // "look straight ahead" fixation dot (no background)
         public GameObject gateHint;
         public GameObject resultPanel;          // practice again / ready
@@ -22,6 +25,14 @@ namespace HumPer
         public Button continueButton;
         public GameObject thanksPanel;          // end of the experiment
         public DebugPanel debugPanel;           // Debug test bench (between trials)
+
+        [Header("Experimenter screens (English)")]
+        public GameObject resumePanel;          // an unfinished session exists for the entered ID
+        public Text resumeText;
+        public Button resumeButton, startNewButton, resumeBackButton;
+        public GameObject cancelPanel;          // Y button: cancel this participant? (upper region, shown on top of any screen)
+        public Text cancelText;
+        public Button cancelConfirmButton, cancelKeepButton;
 
         [Header("HUD canvas (small strip above the stimuli)")]
         public GameObject hudRoot;
@@ -37,8 +48,9 @@ namespace HumPer
         void Awake()
         {
             LocalizedText.CjkFont = cjkFont;
-            _panels = new[] { menu.gameObject, languagePanel, introPanel, gatePanel, resultPanel, blockDonePanel, thanksPanel, debugPanel.gameObject };
+            _panels = new[] { menu.gameObject, languagePanel, introPanel, setupPanel, gatePanel, resultPanel, blockDonePanel, thanksPanel, debugPanel.gameObject, resumePanel };
             HideAll();
+            if (cancelPanel != null) cancelPanel.SetActive(false);
             ShowHud(null);
         }
 

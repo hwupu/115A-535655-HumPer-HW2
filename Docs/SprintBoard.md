@@ -21,7 +21,8 @@
 | PB-17 cardboard image | | |
 |  | | PB-18 Temp step kept as "Hot Fix" (closed) |
 | PB-20 analysis export | | |
-| PB-21 resume / cancel participant (Y dialog) | | |
+|  | | PB-21 resume / cancel participant (closed)
+|  | | PB-24 setup instructions before practice (closed)
 |  | | PB-22 number pad instead of system keyboard (closed); recenter follows (GUI + stimuli) |
 | PB-23 CSV retrieval on macOS | | |
 

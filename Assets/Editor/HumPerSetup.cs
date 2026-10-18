@@ -252,6 +252,14 @@ namespace HumPer.EditorTools
             LocalizeLabel(startLabel, "practice_start");
             refs.introPanel = intro.gameObject;
 
+            // --- setup instructions before the practice (recenter, IPD, look at the dot); one panel, the text key changes per step ---
+            var setup = Panel(go.transform, "Practice - Setup Instructions", dark);
+            var setupText = LocalizedLabel(setup, "Text", "setup_recenter", 40, new Vector2(0, 70), new Vector2(880, 460));
+            refs.setupText = setupText.GetComponent<LocalizedText>();
+            refs.setupContinueButton = MakeButton(setup, "Continue", "", 42, new Vector2(0, -270), new Vector2(400, 100), green, out var setupContinueLabel);
+            LocalizeLabel(setupContinueLabel, "continue");
+            refs.setupPanel = setup.gameObject;
+
             // --- head alignment gate: no background, just a fixation dot at the center (straight ahead) ---
             var gate = new GameObject("Gate - Look Straight Ahead", typeof(RectTransform));
             gate.transform.SetParent(go.transform, false);
@@ -293,6 +301,15 @@ namespace HumPer.EditorTools
             LocalizedLabel(thanks, "Text", "thanks", 64, Vector2.zero, new Vector2(880, 300));
             refs.thanksPanel = thanks.gameObject;
 
+            // --- experimenter: unfinished session found for the entered ID (English) ---
+            var resumeP = Panel(go.transform, "Experimenter - Resume Session", dark);
+            refs.resumeText = Label(resumeP, "Text", "", 40, new Vector2(0, 150), new Vector2(900, 320));
+            refs.resumeButton = MakeButton(resumeP, "Resume", "Resume", 40, new Vector2(-230, -130), new Vector2(400, 120), green, out _);
+            refs.startNewButton = MakeButton(resumeP, "Start New", "Start new", 40, new Vector2(230, -130), new Vector2(400, 120),
+                                             new Color(0.42f, 0.18f, 0.18f, 1f), out _);
+            refs.resumeBackButton = MakeButton(resumeP, "Back", "Back", 34, new Vector2(0, -270), new Vector2(300, 80), gray, out _);
+            refs.resumePanel = resumeP.gameObject;
+
             // --- Debug test bench (shown between trials) ---
             var bench = Panel(go.transform, "Debug - Test Bench", dark);
             var benchPanel = bench.gameObject.AddComponent<DebugPanel>();
@@ -309,6 +326,20 @@ namespace HumPer.EditorTools
             benchPanel.SetCondition(Condition.Quiet);
             benchPanel.SetSphereAlways(false);
             refs.debugPanel = benchPanel;
+
+            // --- Y button: cancel this participant? Upper region, on top of every screen, English (experimenter) ---
+            var cancel = new GameObject("Dialog - Cancel Participant", typeof(RectTransform), typeof(Image));
+            cancel.transform.SetParent(go.transform, false);
+            var crt = (RectTransform)cancel.transform;
+            crt.anchoredPosition = new Vector2(0, 235);
+            crt.sizeDelta = new Vector2(940, 230);
+            cancel.GetComponent<Image>().color = new Color(0.30f, 0.08f, 0.08f, 1f);
+            refs.cancelText = Label(crt, "Text", "", 30, new Vector2(0, 55), new Vector2(900, 110));
+            refs.cancelConfirmButton = MakeButton(crt, "Cancel Participant", "Cancel participant", 30, new Vector2(-230, -55), new Vector2(400, 80),
+                                                  new Color(0.65f, 0.18f, 0.18f, 1f), out _);
+            refs.cancelKeepButton = MakeButton(crt, "Keep Going", "Keep going", 30, new Vector2(230, -55), new Vector2(400, 80), gray, out _);
+            refs.cancelPanel = cancel;
+            cancel.SetActive(false);
 
             var fontGuid = AssetDatabase.FindAssets("t:Font", new[] { "Assets/Fonts" }).FirstOrDefault();
             if (fontGuid != null) refs.cjkFont = AssetDatabase.LoadAssetAtPath<Font>(AssetDatabase.GUIDToAssetPath(fontGuid));

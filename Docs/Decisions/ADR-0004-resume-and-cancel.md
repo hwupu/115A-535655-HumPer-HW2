@@ -1,0 +1,12 @@
+# ADR-0004: Resume after interruption, cancel participant (2026-10-18, PB-21)
+
+Status: accepted; headset test pending.
+
+Participants may take a break at any time; the headset can sleep or the app can be closed by accident. A real session must be resumable, and the experimenter must be able to cancel a participant without deleting data.
+
+- **Progress file** `progress_<ID>.txt` in `persistentDataPath` (key=value text; pure C# `SessionProgress` / `ProgressStore`, unit-tested). It is rewritten (write temp, then replace) after every language choice, the end of practice and every finished real trial. It holds participant ID, CSV file name, language, seed, block index, trials done in the block and status (`InProgress`, `Completed`, `Cancelled`). Practice trials are not saved; an interruption during practice restarts at the practice instructions (language is kept).
+- **Resume point = the last finished trial.** A trial that was running when the app stopped has no CSV row and is run again. The seed is saved, so the trial plan of every condition is identical to the original.
+- **Menu:** unfinished sessions are listed under the buttons ("Unfinished: ID 12 (Reverb, 3 of 6 trials done)"). Pressing Start with an ID that has an unfinished session shows a screen: **Resume**, **Start new** (the old session gets a `participant_cancelled` row and is marked cancelled) or **Back**. Resume appends to the same CSV (no second header) with rows `session_resume` and `resume`, shows a "Welcome back" screen (localized) and continues with the next trial. A block that is continued mid-way logs `condition_begin` again with note `resumed;trials_done=N`.
+- **Y button (left controller), real sessions only:** freezes the session (time scale 0, audio paused) and shows a dialog in the upper region of the GUI: **Cancel participant** or **Keep going**. While it is open the pointer only reaches the dialog (`UiPointer.Modal`). Cancel logs `participant_cancelled`, closes the CSV (never deleted), marks the progress file `Cancelled` (it cannot be resumed) and returns to the menu. Debug mode has its own Back button.
+- Also logged: `app_resumed` (after `app_paused`).
+- Not covered: resuming a Debug session (not needed); a participant ID typed differently on resume (the progress file is looked up by ID, so the experimenter must enter the same ID); the CSV of a cancelled participant stays with the unfinished data for the analysis to exclude.

@@ -36,3 +36,9 @@ Menu (experimenter: ID, Start / Debug) -> language (Chinese (Taiwan) / English) 
 
 ## Levels
 Clips are loudness-normalized (-23 LUFS, mono); software volume is 1 everywhere and the stimulus Meta gain boost is 0 dB; loudness is set with the headset volume. Logged levels are software levels (clip RMS dBFS + gain boost; background = power sum of the three clips).
+
+## Interruption, resume, cancel (PB-21)
+Real sessions save their progress after every finished trial (`progress_<ID>.txt`). After a break that closed the app, enter the same ID and press Start: the menu offers **Resume** (same CSV, same trial plan, continues with the next trial). **Y** on the left controller opens a cancel dialog (upper region); cancelling keeps the CSV and marks the session cancelled. Details: [ADR-0004](Decisions/ADR-0004-resume-and-cancel.md).
+
+## Setup instructions before the practice (PB-24)
+After the language choice and before the practice, three screens (each with Continue): recenter with a long press of the Meta button (the headset may have been set up standing and handed over), set the IPD dial to the value the experimenter gives, then the task instructions, then "a black dot will appear, look at it". The dot is the head gate: the trial starts once the head has faced forward (yaw +/-5 deg, pitch +/-10 deg) for 1 s.

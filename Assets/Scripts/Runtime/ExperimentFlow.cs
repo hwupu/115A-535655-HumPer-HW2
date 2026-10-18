@@ -57,7 +57,9 @@ namespace HumPer
         {
             if (rig == null) rig = FindFirstObjectByType<OVRCameraRig>();
             gui.menu.Chosen += OnChosen;
+            _store = new ProgressStore(Application.persistentDataPath);
             gui.Show(gui.menu.gameObject);
+            RefreshMenuHint();
             StartCoroutine(SubscribeRecenter());
         }
 
@@ -100,55 +102,199 @@ namespace HumPer
 
         void OnApplicationPause(bool paused)
         {
-            if (paused) _log?.Event("app_paused");
+            _log?.Event(paused ? "app_paused" : "app_resumed");
+        }
+
+        // ---- Experimenter controls: Y = cancel this participant; unfinished sessions can be resumed ----
+
+        ProgressStore _store;
+        SessionProgress _progress;
+        Coroutine _runCo;
+        bool _realRun;      // a real (non-debug) session is running: Y opens the cancel dialog
+        bool _dialogOpen;
+
+        void Update()
+        {
+            if (_realRun && !_dialogOpen && OVRInput.GetDown(OVRInput.Button.Two, OVRInput.Controller.LTouch)) // Y
+                StartCoroutine(CancelDialog());
+        }
+
+        /// <summary>Shows the unfinished sessions under the menu so the experimenter knows which ID to enter.</summary>
+        void RefreshMenuHint()
+        {
+            var open = _store.ListUnfinished();
+            var sb = new StringBuilder();
+            foreach (var p in open)
+            {
+                if (sb.Length > 0) sb.Append("; ");
+                sb.Append("ID ").Append(p.ParticipantId.Length > 0 ? p.ParticipantId : "(none)").Append(" (").Append(p.Describe()).Append(")");
+            }
+            gui.menu.SetStatus(open.Count > 0 ? "Unfinished: " + sb + ". Enter the ID and press Start to resume." : "");
+        }
+
+        IEnumerator CancelDialog()
+        {
+            _dialogOpen = true;
+            Time.timeScale = 0f;        // freezes the trial, timers and gate; the pointer still works (it polls OVRInput)
+            AudioListener.pause = true;
+            string id = _progress != null && _progress.ParticipantId.Length > 0 ? _progress.ParticipantId : "(no ID)";
+            gui.cancelText.text = "Cancel participant " + id + "?\nThe CSV is kept and marked 'cancelled'; the session cannot be resumed.";
+            gui.cancelPanel.SetActive(true);
+            UiPointer.Modal = gui.cancelPanel.transform;
+
+            Button clicked = null;
+            yield return WaitForAny(b => clicked = b, gui.cancelConfirmButton, gui.cancelKeepButton);
+
+            gui.cancelPanel.SetActive(false);
+            UiPointer.Modal = null;
+            Time.timeScale = 1f;
+            AudioListener.pause = false;
+            _dialogOpen = false;
+            if (clicked == gui.cancelConfirmButton) AbortRealRun("cancelled_by_experimenter");
+        }
+
+        /// <summary>Stop the running session, keep its CSV (with a cancel row) and mark the progress file cancelled. Back to the menu.</summary>
+        void AbortRealRun(string reason)
+        {
+            if (_runCo != null) StopCoroutine(_runCo);
+            _runCo = null;
+            stimuli.HideAll();
+            acoustics.StopAll();
+            gui.ShowHud(null);
+            if (_log != null)
+            {
+                _log.Event("participant_cancelled", reason);
+                _log.Dispose();
+                _log = null;
+            }
+            if (_progress != null)
+            {
+                _progress.Status = SessionStatus.Cancelled;
+                _store.Save(_progress);
+            }
+            _realRun = false;
+            _running = false;
+            gui.Show(gui.menu.gameObject);
+            RefreshMenuHint();
         }
 
         void OnChosen(string participantId, bool debug)
         {
             if (_running) return;
             _running = true;
-            StartCoroutine(debug ? RunDebug(participantId) : Run(participantId));
+            _runCo = StartCoroutine(debug ? RunDebug(participantId) : StartReal(participantId));
+        }
+
+        /// <summary>Real session: if an unfinished one exists for this ID, ask whether to resume it or start a new one.</summary>
+        IEnumerator StartReal(string participantId)
+        {
+            var existing = _store.LoadUnfinished(participantId);
+            SessionProgress resume = null;
+            if (existing != null)
+            {
+                gui.resumeText.text = "Unfinished session for ID " + (participantId.Length > 0 ? participantId : "(none)") + ": " + existing.Describe() +
+                                      ".\nResume it, or start a new session (the old one is marked cancelled)?";
+                gui.Show(gui.resumePanel);
+                Button clicked = null;
+                yield return WaitForAny(b => clicked = b, gui.resumeButton, gui.startNewButton, gui.resumeBackButton);
+                if (clicked == gui.resumeBackButton)
+                {
+                    gui.Show(gui.menu.gameObject);
+                    _running = false;
+                    yield break;
+                }
+                if (clicked == gui.resumeButton) resume = existing;
+                else CancelOldSession(existing, "replaced_by_new_session");
+            }
+            yield return Run(participantId, resume);
+        }
+
+        void CancelOldSession(SessionProgress old, string reason)
+        {
+            string path = Path.Combine(Application.persistentDataPath, old.CsvFile);
+            if (File.Exists(path))
+            {
+                using (var writer = new StreamWriter(path, true, new UTF8Encoding(false)))
+                    new ExperimentLog(writer, () => DateTime.Now, old.ParticipantId, false, null, writeHeader: false).Event("participant_cancelled", reason);
+            }
+            old.Status = SessionStatus.Cancelled;
+            _store.Save(old);
         }
 
         // ==== Start experiment ====================================================================================
 
-        IEnumerator Run(string participantId)
+        IEnumerator Run(string participantId, SessionProgress resume)
         {
-            OpenLog(participantId, false);
+            bool resumed = resume != null;
+            _progress = resumed ? resume : new SessionProgress { ParticipantId = participantId };
+            OpenLog(participantId, false, resumed ? _progress.CsvFile : null);
+            _realRun = true;
+            _store.Save(_progress);
+            if (resumed) _log.Event("resume", _progress.Describe());
             yield return RecenterAndPlaceGui();
 
             // ---- language ----
-            gui.Show(gui.languagePanel);
-            Button picked = null;
-            yield return WaitForAny(b => picked = b, gui.chineseButton, gui.englishButton);
-            Localization.Set(picked == gui.chineseButton ? Language.ChineseTaiwan : Language.English);
-            _log.Event("language", Localization.Current.ToString());
-
-            // ---- practice instructions ----
-            gui.Show(gui.introPanel);
-            yield return WaitForAny(_ => { }, gui.startPracticeButton);
-
-            // ---- practice trials, as many as the participant likes ----
-            _log.ConditionEvent("practice_begin", "practice");
-            int number = 0;
-            bool ready = false;
-            while (!ready)
+            if (!_progress.LanguageChosen)
             {
-                var spec = new TrialSpec(Condition.Practice, ++number, practiceAudioStartAzDeg, practiceVisualAzDeg, practiceRadiusM);
-                yield return RunTrial(spec, showPracticeHint: true, sphereAlways: false, feedback: false, hudInfo: null);
-                gui.Show(gui.resultPanel);
-                yield return WaitForAny(b => ready = b == gui.readyButton, gui.againButton, gui.readyButton);
+                gui.Show(gui.languagePanel);
+                Button picked = null;
+                yield return WaitForAny(b => picked = b, gui.chineseButton, gui.englishButton);
+                _progress.Language = picked == gui.chineseButton ? Language.ChineseTaiwan : Language.English;
+                _progress.LanguageChosen = true;
+                _store.Save(_progress);
+                Localization.Set(_progress.Language);
+                _log.Event("language", _progress.Language.ToString());
             }
-            _log.ConditionEvent("practice_end", "practice", "trials=" + number);
+            else Localization.Set(_progress.Language);
+
+            // ---- practice, as many trials as the participant likes ----
+            bool practiceWasDone = _progress.PracticeDone;
+            if (!practiceWasDone)
+            {
+                // the headset was probably set up standing and handed over: recenter, then the IPD dial
+                yield return ShowSetupStep("setup_recenter");
+                yield return ShowSetupStep("setup_ipd");
+
+                gui.Show(gui.introPanel);
+                yield return WaitForAny(_ => { }, gui.startPracticeButton);
+                yield return ShowSetupStep("setup_dot"); // then the first trial starts with the fixation dot (head gate)
+
+                _log.ConditionEvent("practice_begin", "practice");
+                int number = 0;
+                bool ready = false;
+                while (!ready)
+                {
+                    var spec = new TrialSpec(Condition.Practice, ++number, practiceAudioStartAzDeg, practiceVisualAzDeg, practiceRadiusM);
+                    yield return RunTrial(spec, showPracticeHint: true, sphereAlways: false, feedback: false, hudInfo: null);
+                    gui.Show(gui.resultPanel);
+                    yield return WaitForAny(b => ready = b == gui.readyButton, gui.againButton, gui.readyButton);
+                }
+                _log.ConditionEvent("practice_end", "practice", "trials=" + number);
+
+                _progress.Seed = (int)(DateTime.Now.Ticks & 0x7FFFFFFF);
+                _progress.PracticeDone = true;
+                _store.Save(_progress);
+                _log.Event("experiment_begin", "seed=" + _progress.Seed);
+            }
+            else if (resumed)
+            {
+                // Welcome back screen (reuses the rest screen) before the next trial.
+                gui.blockDoneText.key = "resume_intro";
+                gui.blockDoneText.SetArgs();
+                gui.Show(gui.blockDonePanel);
+                yield return WaitForAny(_ => { }, gui.continueButton);
+                gui.HideAll();
+                gui.blockDoneText.key = "block_done";
+            }
 
             // ---- the experiment: Quiet, Reverb, Noisy; 6 trials each; a rest screen between conditions ----
-            int seed = (int)(DateTime.Now.Ticks & 0x7FFFFFFF);
-            _log.Event("experiment_begin", "seed=" + seed);
             var order = TrialPlanner.ConditionOrder;
-            for (int c = 0; c < order.Length; c++)
+            int startBlock = _progress.BlockIndex;
+            for (int c = startBlock; c < order.Length; c++)
             {
-                if (c > 0)
+                if (c > startBlock)
                 {
+                    gui.blockDoneText.key = "block_done";
                     gui.blockDoneText.SetArgs(c);
                     gui.Show(gui.blockDonePanel);
                     yield return WaitForAny(_ => { }, gui.continueButton);
@@ -156,11 +302,16 @@ namespace HumPer
                 }
 
                 var condition = order[c];
-                var plan = TrialPlanner.PlanCondition(condition, seed + c, leftVisualPoolDeg, rightVisualPoolDeg, audioStartDeg, trialRadiusM);
+                var plan = TrialPlanner.PlanCondition(condition, _progress.Seed + c, leftVisualPoolDeg, rightVisualPoolDeg, audioStartDeg, trialRadiusM);
+                int first = c == startBlock ? _progress.TrialsDone : 0;
                 acoustics.SetCondition(condition, Head.position, Yaw); // Noisy: the background plays for the whole block
-                _log.ConditionEvent("condition_begin", condition.ToString().ToLowerInvariant());
-                foreach (var spec in plan)
-                    yield return RunTrial(spec, showPracticeHint: false, sphereAlways: false, feedback: false, hudInfo: null);
+                _log.ConditionEvent("condition_begin", condition.ToString().ToLowerInvariant(), first > 0 ? "resumed;trials_done=" + first : "");
+                for (int i = first; i < plan.Count; i++)
+                {
+                    yield return RunTrial(plan[i], showPracticeHint: false, sphereAlways: false, feedback: false, hudInfo: null);
+                    _progress.TrialFinished();
+                    _store.Save(_progress);
+                }
                 _log.ConditionEvent("condition_end", condition.ToString().ToLowerInvariant());
                 acoustics.StopAll();
                 stimuli.HideAll();
@@ -169,7 +320,20 @@ namespace HumPer
             _log.Event("experiment_end");
             _log.Dispose();
             _log = null;
+            _progress.Status = SessionStatus.Completed;
+            _store.Save(_progress);
+            _realRun = false;
             gui.Show(gui.thanksPanel);
+        }
+
+        /// <summary>One instruction screen before the practice (key from the localization table) with a Continue button.</summary>
+        IEnumerator ShowSetupStep(string key)
+        {
+            gui.setupText.key = key;
+            gui.setupText.Refresh();
+            gui.Show(gui.setupPanel);
+            yield return WaitForAny(_ => { }, gui.setupContinueButton);
+            _log.Event("setup_step", key);
         }
 
         // ==== Debug test bench ====================================================================================
@@ -241,6 +405,7 @@ namespace HumPer
             _log.Dispose();
             _log = null;
             gui.Show(gui.menu.gameObject);
+            RefreshMenuHint();
             _running = false;
         }
 
@@ -344,14 +509,18 @@ namespace HumPer
             result(clicked);
         }
 
-        void OpenLog(string participantId, bool debug)
+        /// <param name="existingCsv">File name of the CSV of a resumed session: rows are appended (no new header). If it is gone, a new file is started.</param>
+        void OpenLog(string participantId, bool debug, string existingCsv = null)
         {
-            var now = DateTime.Now;
-            string path = Path.Combine(Application.persistentDataPath, ExperimentLog.FileName(now, participantId, debug));
-            var writer = new StreamWriter(path, false, new UTF8Encoding(false)) { AutoFlush = true };
-            _log = new ExperimentLog(writer, () => DateTime.Now, participantId, debug, line => Debug.Log("[HumPer] " + line));
-            Debug.Log("[HumPer] Logging to " + path);
-            _log.Event("session_start", "app=" + Application.version + ";device=" + SystemInfo.deviceModel +
+            string file = existingCsv;
+            bool append = !string.IsNullOrEmpty(file) && File.Exists(Path.Combine(Application.persistentDataPath, file));
+            if (!append) file = ExperimentLog.FileName(DateTime.Now, participantId, debug);
+            string path = Path.Combine(Application.persistentDataPath, file);
+            var writer = new StreamWriter(path, append, new UTF8Encoding(false)) { AutoFlush = true };
+            _log = new ExperimentLog(writer, () => DateTime.Now, participantId, debug, line => Debug.Log("[HumPer] " + line), writeHeader: !append);
+            Debug.Log("[HumPer] Logging to " + path + (append ? " (appending, resumed session)" : ""));
+            if (!debug && _progress != null) _progress.CsvFile = file;
+            _log.Event(append ? "session_resume" : "session_start", "app=" + Application.version + ";device=" + SystemInfo.deviceModel +
                                         ";stimulus_gain_boost_db=" + stimuli.GainBoostDb);
         }
     }

@@ -21,7 +21,8 @@ namespace HumPer
         readonly string _participant;
         readonly string _mode;
 
-        public ExperimentLog(TextWriter writer, Func<DateTime> now, string participantId, bool debug, Action<string> mirror = null)
+        /// <param name="writeHeader">false when appending to the CSV of a resumed session.</param>
+        public ExperimentLog(TextWriter writer, Func<DateTime> now, string participantId, bool debug, Action<string> mirror = null, bool writeHeader = true)
         {
             _writer = writer;
             _now = now;
@@ -29,7 +30,7 @@ namespace HumPer
             _start = now();
             _participant = SanitizeId(participantId);
             _mode = debug ? "DEBUG" : "EXPERIMENT";
-            WriteLine(Header);
+            if (writeHeader) WriteLine(Header);
         }
 
         /// <summary>yyyyMMdd_HHmmss[_ParticipantID][_DEBUG].csv</summary>

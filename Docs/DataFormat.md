@@ -16,6 +16,10 @@ Columns: `event, timestamp_local, elapsed_s, participant, mode, condition, trial
 | `debug_begin` / `condition` / `debug_end` | Debug test bench only |
 | `app_paused` | headset removed / app paused |
 | `recenter` | the Meta button was long-pressed; GUI and stimuli were re-placed around the new forward direction |
+| `setup_step` | a pre-practice instruction screen was confirmed (note: `setup_recenter`, `setup_ipd`, `setup_dot`) |
+| `session_resume` / `resume` | an interrupted session was continued (appended to the same CSV; note: position, e.g. `Reverb, 3 of 6 trials done`) |
+| `app_resumed` | app back from pause |
+| `participant_cancelled` | the experimenter cancelled the participant (Y button, or "Start new" over an unfinished session); the session cannot be resumed |
 
 - `mode`: `EXPERIMENT` or `DEBUG`. Timestamps are local time; `elapsed_s` counts from the start of the log.
 - `signed_error_deg` = audio_final - visual (positive: the audio ended to the right of the cardboard).

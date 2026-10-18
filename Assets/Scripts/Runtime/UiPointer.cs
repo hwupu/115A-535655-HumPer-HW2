@@ -11,6 +11,9 @@ namespace HumPer
     /// </summary>
     public class UiPointer : MonoBehaviour
     {
+        /// <summary>While set (e.g. a modal dialog), only selectables under this transform can be pointed at.</summary>
+        public static Transform Modal;
+
         public float maxDistanceM = 6f;
         public float idleLaserLengthM = 2f;
         [Tooltip("Must support single-pass stereo (e.g. URP Unlit). Sprites/Default renders in the left eye only.")]
@@ -64,7 +67,8 @@ namespace HumPer
             if ((leftDown || rightDown) && hit is Button button) button.onClick.Invoke();
         }
 
-        static bool IsUsable(Selectable s) => s != null && s.isActiveAndEnabled && s.interactable;
+        static bool IsUsable(Selectable s) =>
+            s != null && s.isActiveAndEnabled && s.interactable && (Modal == null || s.transform.IsChildOf(Modal));
 
         Selectable Raycast(Ray ray, Selectable[] targets, out Vector3 point)
         {

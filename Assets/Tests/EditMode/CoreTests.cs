@@ -128,5 +128,72 @@ namespace HumPer.Tests
             Assert.AreEqual(2, changes);
             Assert.AreEqual("[nope]", Localization.Get("nope"));
         }
+
+        [Test]
+        public void Progress_RoundTrips_AndMovesToNextBlockAfterSixTrials()
+        {
+            var p = new SessionProgress { ParticipantId = "12", CsvFile = "a.csv", Language = Language.ChineseTaiwan, LanguageChosen = true, PracticeDone = true, Seed = 99 };
+            for (int i = 0; i < 6; i++) p.TrialFinished();
+            Assert.AreEqual(1, p.BlockIndex);
+            Assert.AreEqual(0, p.TrialsDone);
+            p.TrialFinished();
+            var q = SessionProgress.Parse(p.Serialize());
+            Assert.AreEqual("12", q.ParticipantId);
+            Assert.AreEqual("a.csv", q.CsvFile);
+            Assert.AreEqual(Language.ChineseTaiwan, q.Language);
+            Assert.IsTrue(q.PracticeDone && q.LanguageChosen);
+            Assert.AreEqual(99, q.Seed);
+            Assert.AreEqual(1, q.BlockIndex);
+            Assert.AreEqual(1, q.TrialsDone);
+            Assert.AreEqual(SessionStatus.InProgress, q.Status);
+            StringAssert.Contains("Reverb", q.Describe());
+        }
+
+        [Test]
+        public void ProgressStore_OnlyReturnsUnfinishedSessions()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "humper_progress_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                var store = new ProgressStore(dir);
+                Assert.IsNull(store.LoadUnfinished("7"));
+                store.Save(new SessionProgress { ParticipantId = "7", CsvFile = "x.csv" });
+                store.Save(new SessionProgress { ParticipantId = "8", Status = SessionStatus.Cancelled });
+                store.Save(new SessionProgress { ParticipantId = "9", Status = SessionStatus.Completed });
+                Assert.IsNotNull(store.LoadUnfinished("7"));
+                Assert.IsNull(store.LoadUnfinished("8"));
+                Assert.IsNull(store.LoadUnfinished("9"));
+                Assert.AreEqual(1, store.ListUnfinished().Count);
+                var p = store.Load("7");
+                p.TrialFinished();
+                store.Save(p); // overwrite
+                Assert.AreEqual(1, store.Load("7").TrialsDone);
+                Assert.AreEqual(Path.Combine(dir, "progress_noid.txt"), store.PathFor(""));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Test]
+        public void Log_AppendMode_WritesNoSecondHeader()
+        {
+            var sw = new StringWriter();
+            var log = new ExperimentLog(sw, () => DateTime.UnixEpoch, "5", debug: false, writeHeader: false);
+            log.Event("resume");
+            StringAssert.DoesNotContain("event,timestamp_local", sw.ToString());
+            StringAssert.StartsWith("resume,", sw.ToString());
+        }
+
+        [Test]
+        public void Localization_HasSetupInstructions_InBothLanguages()
+        {
+            foreach (var language in new[] { Language.English, Language.ChineseTaiwan })
+            {
+                Localization.Set(language);
+                foreach (var key in new[] { "setup_recenter", "setup_ipd", "setup_dot" })
+                    Assert.IsFalse(Localization.Get(key).StartsWith("["), key + " missing in " + language);
+            }
+            Localization.Set(Language.English);
+        }
     }
 }
