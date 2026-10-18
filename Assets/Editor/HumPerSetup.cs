@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.UI;
 
 namespace HumPer.EditorTools
@@ -80,11 +81,11 @@ namespace HumPer.EditorTools
         [MenuItem("Magic/Step 2 - Room Setup...", priority = 2)]
         public static void OpenRoomDialog() => RoomSetupDialog.Open();
 
-        /// <summary>Size of the existing room, or the default (8 wide, 10 deep, 3.5 high).</summary>
+        /// <summary>Size of the existing room, or the default (8.72 wide, 15 deep, 3.5 high).</summary>
         public static Vector3 CurrentRoomSize()
         {
             var info = Object.FindFirstObjectByType<RoomInfo>(FindObjectsInactive.Include);
-            return info != null ? new Vector3(info.width, info.height, info.depth) : new Vector3(8f, 3.5f, 10f);
+            return info != null ? new Vector3(info.width, info.height, info.depth) : new Vector3(8.72f, 3.5f, 15f);
         }
 
         public static MetaXRAudioRoomAcousticProperties.MaterialPreset CurrentRoomMaterial()
@@ -313,18 +314,33 @@ namespace HumPer.EditorTools
             // --- Debug test bench (shown between trials) ---
             var bench = Panel(go.transform, "Debug - Test Bench", dark);
             var benchPanel = bench.gameObject.AddComponent<DebugPanel>();
-            Label(bench, "Title", "Debug test bench", 44, new Vector2(0, 290), new Vector2(800, 60));
-            benchPanel.statusText = Label(bench, "Status", "", 26, new Vector2(0, 220), new Vector2(940, 80));
-            benchPanel.quietButton = MakeButton(bench, "Quiet", "Quiet", 38, new Vector2(-300, 100), new Vector2(280, 100), gray, out _);
-            benchPanel.reverbButton = MakeButton(bench, "Reverb", "Reverb", 38, new Vector2(0, 100), new Vector2(280, 100), gray, out _);
-            benchPanel.noisyButton = MakeButton(bench, "Noisy", "Noisy", 38, new Vector2(300, 100), new Vector2(280, 100), gray, out _);
-            benchPanel.sphereToggleButton = MakeButton(bench, "Sphere Toggle", "", 34, new Vector2(0, -20), new Vector2(700, 90), gray, out benchPanel.sphereToggleLabel);
-            benchPanel.runTrialButton = MakeButton(bench, "Run Trial", "Run trial", 38, new Vector2(-230, -140), new Vector2(440, 100), green, out _);
-            benchPanel.practiceTrialButton = MakeButton(bench, "Practice Trial", "Practice-style trial", 34, new Vector2(230, -140), new Vector2(440, 100), gray, out _);
-            benchPanel.backButton = MakeButton(bench, "Back", "Back to menu", 34, new Vector2(0, -270), new Vector2(400, 90),
+            var orange = new Color(0.42f, 0.32f, 0.12f, 1f);
+            Label(bench, "Title", "Debug test bench", 40, new Vector2(0, 318), new Vector2(800, 50));
+            benchPanel.statusText = Label(bench, "Status", "", 22, new Vector2(0, 268), new Vector2(960, 56));
+            benchPanel.quietButton = MakeButton(bench, "Quiet", "Quiet", 34, new Vector2(-310, 195), new Vector2(290, 80), gray, out _);
+            benchPanel.reverbButton = MakeButton(bench, "Reverb", "Reverb", 34, new Vector2(310, 195), new Vector2(290, 80), gray, out _);
+            benchPanel.noisyButton = MakeButton(bench, "Noisy", "Noisy", 34, new Vector2(0, 195), new Vector2(290, 80), gray, out _);
+            // reverb time (calculated from the room size; Meta only offers material presets)
+            benchPanel.rt02Button = MakeButton(bench, "RT60 0.2", "0.2 s", 30, new Vector2(-345, 110), new Vector2(210, 70), gray, out _);
+            benchPanel.rt07Button = MakeButton(bench, "RT60 0.7", "0.7 s", 30, new Vector2(-115, 110), new Vector2(210, 70), gray, out _);
+            benchPanel.rt22Button = MakeButton(bench, "RT60 2.2", "2.2 s", 30, new Vector2(115, 110), new Vector2(210, 70), gray, out _);
+            benchPanel.presetButton = MakeButton(bench, "Reverb Preset", "Preset", 24, new Vector2(345, 110), new Vector2(210, 70), gray, out benchPanel.presetLabel);
+            benchPanel.rtDownButton = MakeButton(bench, "RT60 Down", "-10%", 30, new Vector2(-400, 35), new Vector2(150, 60), gray, out _);
+            benchPanel.reverbReadout = Label(bench, "Reverb Readout", "", 26, new Vector2(0, 35), new Vector2(620, 60));
+            benchPanel.rtUpButton = MakeButton(bench, "RT60 Up", "+10%", 30, new Vector2(400, 35), new Vector2(150, 60), gray, out _);
+            // playback tests
+            benchPanel.stimulusToggleButton = MakeButton(bench, "Play Stimulus", "", 26, new Vector2(-250, -45), new Vector2(480, 70), gray, out benchPanel.stimulusToggleLabel);
+            benchPanel.backgroundToggleButton = MakeButton(bench, "Play Background", "", 26, new Vector2(250, -45), new Vector2(480, 70), gray, out benchPanel.backgroundToggleLabel);
+            benchPanel.sphereToggleButton = MakeButton(bench, "Sphere Toggle", "", 28, new Vector2(0, -125), new Vector2(730, 70), gray, out benchPanel.sphereToggleLabel);
+            benchPanel.runTrialButton = MakeButton(bench, "Run Trial", "Run trial", 34, new Vector2(-250, -210), new Vector2(480, 80), green, out _);
+            benchPanel.practiceTrialButton = MakeButton(bench, "Practice Trial", "Practice-style trial", 30, new Vector2(250, -210), new Vector2(480, 80), gray, out _);
+            benchPanel.backButton = MakeButton(bench, "Back", "Back to menu", 30, new Vector2(0, -300), new Vector2(400, 70),
                                                new Color(0.42f, 0.2f, 0.2f, 1f), out _);
             benchPanel.SetCondition(Condition.Quiet);
             benchPanel.SetSphereAlways(false);
+            benchPanel.SetStimulusPlaying(false);
+            benchPanel.SetBackgroundPlaying(false);
+            benchPanel.SetReverb("", 0);
             refs.debugPanel = benchPanel;
 
             // --- Y button: cancel this participant? Upper region, on top of every screen, English (experimenter) ---
@@ -493,6 +509,11 @@ namespace HumPer.EditorTools
 
             // Acoustic conditions: reverb = EnableAcoustics on the stimulus; noisy = the three Spatial Audio background blocks
             // (left, right, back) with the three background recordings (SFX-C-02..04, sorted by name).
+            // keep the PO's arrangement (which clip / azimuth belongs to which background source) when this step is run again
+            var previous = Object.FindFirstObjectByType<AcousticConditions>(FindObjectsInactive.Include);
+            var keptClips = previous != null ? previous.backgroundClips : null;
+            var keptAzimuths = previous != null ? previous.backgroundAzimuthsDeg : null;
+            var keptRadius = previous != null ? previous.backgroundRadiusM : 2f;
             DestroyEverywhere("Acoustic Conditions");
             var conditions = new GameObject("Acoustic Conditions").AddComponent<AcousticConditions>();
             conditions.transform.SetParent(group, false);
@@ -503,9 +524,12 @@ namespace HumPer.EditorTools
                 FindByName("[BuildingBlock] Spatial Audio Background Right"),
                 FindByName("[BuildingBlock] Spatial Audio Background Back"),
             };
-            var backgroundClips = new[] { FindClip("SFX-C-02"), FindClip("SFX-C-03"), FindClip("SFX-C-04") };
+            var backgroundClips = new[] { FindClip("SFX-C-02"), FindClip("SFX-C-04"), FindClip("SFX-C-03") }; // left, right, back (PO arrangement)
             conditions.backgroundSources = backgroundObjects.Select(o => o != null ? o.GetComponent<AudioSource>() : null).ToArray();
             conditions.backgroundMeta = backgroundObjects.Select(o => o != null ? o.GetComponent<MetaXRAudioSource>() : null).ToArray();
+            if (keptClips != null && keptClips.Length == 3 && keptClips.All(c => c != null)) backgroundClips = keptClips;
+            if (keptAzimuths != null && keptAzimuths.Length == 3) conditions.backgroundAzimuthsDeg = keptAzimuths;
+            conditions.backgroundRadiusM = keptRadius;
             conditions.backgroundClips = backgroundClips;
             for (int i = 0; i < 3; i++)
             {
@@ -514,12 +538,26 @@ namespace HumPer.EditorTools
                 else ForceDecompressOnLoad(backgroundClips[i]);
             }
 
+            // Route all four sources through the mixer that carries the Meta reflection effect (the room is rendered there).
+            var mixerGroup = EnsureMixerGroup();
+            if (mixerGroup != null)
+            {
+                controller.audioSource.outputAudioMixerGroup = mixerGroup;
+                foreach (var s in conditions.backgroundSources) if (s != null) s.outputAudioMixerGroup = mixerGroup;
+            }
+
             var flow = new GameObject("Experiment Flow").AddComponent<ExperimentFlow>();
             flow.transform.SetParent(group, false);
             flow.gui = refs;
             flow.stimuli = controller;
             flow.acoustics = conditions;
             flow.rig = rig;
+            var tuner = flow.gameObject.AddComponent<ReverbTuner>();
+            tuner.room = Object.FindFirstObjectByType<MetaXRAudioRoomAcousticProperties>(FindObjectsInactive.Include);
+            tuner.roomInfo = Object.FindFirstObjectByType<RoomInfo>(FindObjectsInactive.Include);
+            if (tuner.room == null) Debug.LogWarning("[HumPer] No shoebox (Step 2) found: the Debug reverb buttons will not work.");
+            flow.reverb = tuner;
+            conditions.reverb = tuner;
 
             MarkSceneDirty();
             Debug.Log("[HumPer] Practice stage wired (stimulus clip: " + (clip != null ? clip.name : "none") + ").");
@@ -544,7 +582,58 @@ namespace HumPer.EditorTools
                     problems++;
                 }
             }
+            foreach (var meta in Object.FindObjectsByType<MetaXRAudioSource>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                var source = meta.GetComponent<AudioSource>();
+                if (source == null || source.outputAudioMixerGroup != null) continue;
+                Debug.LogError("[HumPer] Validate: " + meta.name + " is not routed to the Meta reflection mixer (room acoustics would be silent). Run Step 4.", meta);
+                problems++;
+            }
             Debug.Log("[HumPer] Validate: " + (problems == 0 ? "OK, all references assigned." : problems + " problem(s)."));
+        }
+
+        // ---- Audio mixer with the "Meta XR Audio Reflection" effect ----------------------------------------------
+        // Meta's room acoustics (early reflections and late reverb of the shoebox) are rendered by this mixer effect; without it
+        // sources with Enable Acoustics are completely dry. The mixer API is internal to the editor, hence reflection.
+
+        const string MixerPath = "Assets/Audio/HumPerMixer.mixer";
+        const string ReflectionEffectName = "Meta XR Audio Reflection";
+
+        /// <summary>The Master group of Assets/Audio/HumPerMixer.mixer, creating the mixer with the reflection effect if needed.</summary>
+        public static AudioMixerGroup EnsureMixerGroup()
+        {
+            bool hasEffect = File.Exists(MixerPath) && File.ReadAllText(MixerPath).Contains(ReflectionEffectName);
+            if (!hasEffect)
+            {
+                if (File.Exists(MixerPath)) AssetDatabase.DeleteAsset(MixerPath);
+                CreateMixerWithReflection();
+            }
+            var mixer = AssetDatabase.LoadAssetAtPath<AudioMixer>(MixerPath);
+            var groups = mixer != null ? mixer.FindMatchingGroups("Master") : new AudioMixerGroup[0];
+            if (groups.Length == 0) Debug.LogError("[HumPer] Could not create/load " + MixerPath + ". Create an Audio Mixer by hand and add the 'Meta XR Audio Reflection' effect to Master.");
+            return groups.Length > 0 ? groups[0] : null;
+        }
+
+        static void CreateMixerWithReflection()
+        {
+            const System.Reflection.BindingFlags all = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic |
+                                                       System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static;
+            var editorAssembly = typeof(Editor).Assembly;
+            var controllerType = editorAssembly.GetType("UnityEditor.Audio.AudioMixerController");
+            var effectType = editorAssembly.GetType("UnityEditor.Audio.AudioMixerEffectController");
+            if (controllerType == null || effectType == null) return;
+
+            var controller = (Object)controllerType.GetMethod("CreateMixerControllerAtPath", all).Invoke(null, new object[] { MixerPath });
+            object master = controllerType.GetProperty("masterGroup", all).GetValue(controller);
+            var effects = (System.Array)master.GetType().GetProperty("effects", all).GetValue(master);
+            var effect = (Object)System.Activator.CreateInstance(effectType, all, null, new object[] { ReflectionEffectName }, null);
+            effectType.GetMethod("PreallocateGUIDs", all).Invoke(effect, null);
+            master.GetType().GetMethod("InsertEffect", all).Invoke(master, new object[] { effect, effects.Length });
+            AssetDatabase.AddObjectToAsset(effect, controller);
+            EditorUtility.SetDirty(controller);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("[HumPer] Created " + MixerPath + " with the '" + ReflectionEffectName + "' effect on Master.");
         }
 
         static GameObject FindByName(string name) =>
@@ -762,7 +851,7 @@ namespace HumPer.EditorTools
             EditorSceneManager.OpenScene("Assets/Scenes/ExperimentScene.unity");
             SetupLighting();
             AddGui();
-            BuildRoom(new Vector3(8f, 3.5f, 10f), MetaXRAudioRoomAcousticProperties.MaterialPreset.Concrete, bake: true);
+            BuildRoom(new Vector3(8.72f, 3.5f, 15f), MetaXRAudioRoomAcousticProperties.MaterialPreset.Concrete, bake: true);
             OrganizeHierarchy();
             SetupPractice();
             ValidateSetup();

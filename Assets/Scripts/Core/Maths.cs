@@ -41,3 +41,36 @@ namespace HumPer
         }
     }
 }
+
+namespace HumPer
+{
+    /// <summary>
+    /// Reverberation time of a shoebox room with one uniform reflection coefficient on all six surfaces (Eyring).
+    /// Meta does not say whether its coefficient is a pressure (amplitude) or an energy coefficient: amplitude means absorption
+    /// alpha = 1 - R^2, energy means alpha = 1 - R. The amplitude reading is the default; the two differ by a factor 2 in RT60.
+    /// These are calculated values, not measurements.
+    /// </summary>
+    public static class RoomAcousticsMath
+    {
+        public static void BoxVolumeSurface(float width, float depth, float height, out float volume, out float surface)
+        {
+            volume = width * depth * height;
+            surface = 2f * (width * depth + width * height + depth * height);
+        }
+
+        /// <summary>Reflection coefficient that gives the requested RT60 (seconds), limited to [0, 0.999].</summary>
+        public static float ReflectionForRt60(float rt60Sec, float volumeM3, float surfaceM2, bool amplitude = true)
+        {
+            double k = amplitude ? 2.0 : 1.0;
+            double r = Math.Exp(-0.161 * volumeM3 / (k * surfaceM2 * Math.Max(rt60Sec, 0.01f)));
+            return (float)Math.Min(0.999, Math.Max(0.0, r));
+        }
+
+        public static float Rt60ForReflection(float reflection, float volumeM3, float surfaceM2, bool amplitude = true)
+        {
+            double k = amplitude ? 2.0 : 1.0;
+            double r = Math.Min(0.999, Math.Max(1e-6, reflection));
+            return (float)(0.161 * volumeM3 / (-k * surfaceM2 * Math.Log(r)));
+        }
+    }
+}

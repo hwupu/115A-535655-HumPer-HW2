@@ -22,6 +22,10 @@ namespace HumPer
         public StimulusController stimuli;
         public AcousticConditions acoustics;
         public OVRCameraRig rig;
+        [Tooltip("Debug bench: custom reverberation times (Meta only offers material presets).")]
+        public ReverbTuner reverb;
+        [Tooltip("The background noise keeps playing over the rest screen between Noisy and Reverb (otherwise it restarts with the Reverb block).")]
+        public bool continueBackgroundOverRest = true;
 
         [Header("Practice trial geometry (fixed, different from the experiment trials)")]
         public float practiceRadiusM = 1.2f;
@@ -95,7 +99,6 @@ namespace HumPer
             yield return null;
             gui.PlaceAll();
             stimuli.Replace(Head.position, Yaw);
-            acoustics.Replace(Head.position, Yaw);
             _log?.Event("recenter");
             _recenterPending = false;
         }
@@ -304,8 +307,10 @@ namespace HumPer
                 var condition = order[c];
                 var plan = TrialPlanner.PlanCondition(condition, _progress.Seed + c, leftVisualPoolDeg, rightVisualPoolDeg, audioStartDeg, trialRadiusM);
                 int first = c == startBlock ? _progress.TrialsDone : 0;
-                acoustics.SetCondition(condition, Head.position, Yaw); // Noisy: the background plays for the whole block
-                _log.ConditionEvent("condition_begin", condition.ToString().ToLowerInvariant(), first > 0 ? "resumed;trials_done=" + first : "");
+                acoustics.SetCondition(condition, Head.position, Yaw); // reverb time of the condition; Noisy / Reverb: the background plays
+                string note = (first > 0 ? "resumed;trials_done=" + first + ";" : "") + "rt60=" + acoustics.CurrentRt60.ToString("0.0#");
+                if (acoustics.BackgroundPlaying) note += ";" + acoustics.DescribeBackground(Head); // listener-relative positions, S = spatializer on
+                _log.ConditionEvent("condition_begin", condition.ToString().ToLowerInvariant(), note);
                 for (int i = first; i < plan.Count; i++)
                 {
                     yield return RunTrial(plan[i], showPracticeHint: false, sphereAlways: false, feedback: false, hudInfo: null);
@@ -313,7 +318,9 @@ namespace HumPer
                     _store.Save(_progress);
                 }
                 _log.ConditionEvent("condition_end", condition.ToString().ToLowerInvariant());
-                acoustics.StopAll();
+                // the background continues from Noisy into Reverb (also over the rest screen)
+                bool nextHasBackground = c + 1 < order.Length && ConditionAcoustics.HasBackground(order[c + 1]);
+                if (!(nextHasBackground && continueBackgroundOverRest)) acoustics.StopAll();
                 stimuli.HideAll();
             }
 
@@ -349,26 +356,69 @@ namespace HumPer
             int number = 0;
             var rng = new System.Random();
             bool rightSide = true;
+            bool stimulusPlaying = false;
 
             _log.Event("debug_begin");
             panel.SetCondition(condition);
             panel.SetSphereAlways(sphereAlways);
-            panel.SetStatus("Pick a condition, then run a trial.");
+            panel.SetStimulusPlaying(false);
+            panel.SetBackgroundPlaying(false);
+            panel.SetStatus("Pick a condition, then run a trial. " + (reverb != null ? "Room: " + reverb.RoomModelingStatus : ""));
             acoustics.SetCondition(condition, Head.position, Yaw);
+            UpdateReverbReadout(panel, condition);
 
             while (true)
             {
                 gui.Show(panel.gameObject);
                 Button clicked = null;
                 yield return WaitForAny(b => clicked = b, panel.quietButton, panel.reverbButton, panel.noisyButton,
+                                        panel.rt02Button, panel.rt07Button, panel.rt22Button, panel.presetButton, panel.rtDownButton, panel.rtUpButton,
+                                        panel.stimulusToggleButton, panel.backgroundToggleButton,
                                         panel.sphereToggleButton, panel.runTrialButton, panel.practiceTrialButton, panel.backButton);
 
                 if (clicked == panel.quietButton || clicked == panel.reverbButton || clicked == panel.noisyButton)
                 {
                     condition = clicked == panel.quietButton ? Condition.Quiet : clicked == panel.reverbButton ? Condition.Reverb : Condition.Noisy;
                     panel.SetCondition(condition);
-                    acoustics.SetCondition(condition, Head.position, Yaw); // audible right away (e.g. the background in Noisy)
-                    _log.ConditionEvent("condition", condition.ToString().ToLowerInvariant());
+                    acoustics.SetConditionDefault(condition, Head.position, Yaw); // the condition's own reverb time and background, audible right away
+                    panel.SetBackgroundPlaying(acoustics.BackgroundPlaying);
+                    UpdateReverbReadout(panel, condition);
+                    _log.ConditionEvent("condition", condition.ToString().ToLowerInvariant(), "rt60=" + acoustics.CurrentRt60.ToString("0.0#"));
+                }
+                else if (clicked == panel.rt02Button || clicked == panel.rt07Button || clicked == panel.rt22Button || clicked == panel.presetButton ||
+                         clicked == panel.rtDownButton || clicked == panel.rtUpButton)
+                {
+                    if (reverb == null || reverb.room == null) panel.SetStatus("No reverb tuner / shoebox in the scene: run Step 2 and Step 4.");
+                    else
+                    {
+                        if (clicked == panel.presetButton) acoustics.SetReverbOverride(AcousticConditions.RtMode.Preset, 0f, Head.position, Yaw);
+                        else
+                        {
+                            float seconds = clicked == panel.rt02Button ? 0.2f : clicked == panel.rt07Button ? 0.7f : clicked == panel.rt22Button ? 2.2f
+                                          : (reverb.Custom ? reverb.TargetRt60 : 0.7f) * (clicked == panel.rtUpButton ? 1.1f : 0.9f);
+                            acoustics.SetReverbOverride(AcousticConditions.RtMode.Custom, seconds, Head.position, Yaw);
+                        }
+                        UpdateReverbReadout(panel, condition);
+                        _log.Event("reverb", reverb.Describe() + "; " + reverb.RoomModelingStatus);
+                    }
+                }
+                else if (clicked == panel.stimulusToggleButton)
+                {
+                    stimulusPlaying = !stimulusPlaying;
+                    if (stimulusPlaying)
+                    {
+                        // straight ahead at the experiment radius, with the cardboard, in the current condition
+                        stimuli.Begin(Head.position, Yaw, trialRadiusM, 0f, 0f);
+                        stimuli.ShowVisual(true);
+                        stimuli.PlayAudio();
+                    }
+                    else { stimuli.StopAudio(); stimuli.ShowVisual(false); }
+                    panel.SetStimulusPlaying(stimulusPlaying);
+                }
+                else if (clicked == panel.backgroundToggleButton)
+                {
+                    acoustics.SetBackgroundForced(!acoustics.ForceBackground, Head.position, Yaw);
+                    panel.SetBackgroundPlaying(acoustics.ForceBackground || condition == Condition.Noisy);
                 }
                 else if (clicked == panel.sphereToggleButton)
                 {
@@ -377,6 +427,8 @@ namespace HumPer
                 }
                 else if (clicked == panel.runTrialButton || clicked == panel.practiceTrialButton)
                 {
+                    stimulusPlaying = false;
+                    panel.SetStimulusPlaying(false);
                     TrialSpec spec;
                     if (clicked == panel.practiceTrialButton)
                         spec = new TrialSpec(condition, ++number, practiceAudioStartAzDeg, practiceVisualAzDeg, practiceRadiusM);
@@ -407,6 +459,21 @@ namespace HumPer
             gui.Show(gui.menu.gameObject);
             RefreshMenuHint();
             _running = false;
+        }
+
+        void UpdateReverbReadout(DebugPanel panel, Condition condition)
+        {
+            if (reverb == null) { panel.SetReverb("(no reverb tuner in the scene)", 0); return; }
+            int active = 0;
+            if (acoustics.Mode == AcousticConditions.RtMode.Preset) active = 4;
+            else if (reverb.Custom)
+            {
+                float t = reverb.TargetRt60;
+                active = Mathf.Abs(t - 0.2f) < 0.005f ? 1 : Mathf.Abs(t - 0.7f) < 0.005f ? 2 : Mathf.Abs(t - 2.2f) < 0.005f ? 3 : 0;
+            }
+            if (panel.presetLabel != null) panel.presetLabel.text = reverb.PresetRt60().ToString("0.#") + " s (preset)";
+            string mode = acoustics.Mode == AcousticConditions.RtMode.ConditionDefault ? "  [condition default]" : "  [override]";
+            panel.SetReverb(reverb.Describe() + mode, active);
         }
 
         // ==== One trial ===========================================================================================
@@ -521,7 +588,7 @@ namespace HumPer
             Debug.Log("[HumPer] Logging to " + path + (append ? " (appending, resumed session)" : ""));
             if (!debug && _progress != null) _progress.CsvFile = file;
             _log.Event(append ? "session_resume" : "session_start", "app=" + Application.version + ";device=" + SystemInfo.deviceModel +
-                                        ";stimulus_gain_boost_db=" + stimuli.GainBoostDb);
+                                        ";stimulus_gain_boost_db=" + stimuli.GainBoostDb + ";stimulus_on_s=" + stimuli.audioSource.clip.length.ToString("0.##") + ";stimulus_gap_s=" + stimuli.gapSec);
         }
     }
 }

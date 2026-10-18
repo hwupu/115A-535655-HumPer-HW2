@@ -26,3 +26,6 @@ Candidates: **about 0.7 s**: GypsumBoard (A) or Mud (B); **about 0.2 s**: Acoust
 
 ## Luminance
 The 500 cd/m2 goal is above the Quest 3 hardware limit (roughly 100 nits). Ticket closed as a hardware limit; the room uses baked soft lighting tuned by eye (`HumPerSetup`: ambient 0.7, ceiling area light intensity 2).
+
+## Update 2026-10-18
+The material question above is superseded: the RT60 per condition (0.2 / 0.7 / 2.2 s) is now set directly through a calculated reflection coefficient (ADR-0005). The table remains useful as the calculated RT60 of Meta's presets in the old 8 x 10 x 3.5 m room; for the new room (8.72 x 3.5 x 15 m, V = 458 m3, S = 428 m2) the Debug bench shows the calculated RT60 of the current preset.

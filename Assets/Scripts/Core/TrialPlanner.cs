@@ -11,7 +11,7 @@ namespace HumPer
     public static class TrialPlanner
     {
         /// <summary>Every participant goes through the conditions in this order.</summary>
-        public static readonly Condition[] ConditionOrder = { Condition.Quiet, Condition.Reverb, Condition.Noisy };
+        public static readonly Condition[] ConditionOrder = { Condition.Quiet, Condition.Noisy, Condition.Reverb };
 
         /// <summary>true = the visual stimulus is on the right (positive azimuth).</summary>
         public static readonly bool[] VisualRightSequence = { false, false, true, true, false, true };

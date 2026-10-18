@@ -6,16 +6,17 @@ Columns: `event, timestamp_local, elapsed_s, participant, mode, condition, trial
 
 | event | meaning |
 |---|---|
-| `session_start` | note: app version, device, stimulus gain boost (dB) |
+| `session_start` | note: app version, device, stimulus gain boost (dB), stimulus on / gap seconds |
 | `language` | selected language |
 | `practice_begin` / `practice_end` | practice stage (note: number of practice trials) |
 | `experiment_begin` | note: random seed used for the visual positions |
-| `condition_begin` / `condition_end` | `quiet`, `reverb`, `noisy` |
+| `condition_begin` / `condition_end` | `quiet`, `noisy`, `reverb` (in that order). Note: `rt60=` target in s (calculated), and when the background plays `bg:x..y..z..S|...` = listener-relative position (m) of the three backgrounds, `S` = spatializer on |
 | `trial` | one finished trial (practice trials: `condition=practice`) |
 | `experiment_end` | end of the experiment |
 | `debug_begin` / `condition` / `debug_end` | Debug test bench only |
 | `app_paused` | headset removed / app paused |
 | `recenter` | the Meta button was long-pressed; GUI and stimuli were re-placed around the new forward direction |
+| `reverb` | Debug only: reverb setting changed (note: RT60 target and coefficient, or preset) |
 | `setup_step` | a pre-practice instruction screen was confirmed (note: `setup_recenter`, `setup_ipd`, `setup_dot`) |
 | `session_resume` / `resume` | an interrupted session was continued (appended to the same CSV; note: position, e.g. `Reverb, 3 of 6 trials done`) |
 | `app_resumed` | app back from pause |

@@ -34,9 +34,9 @@ namespace HumPer.Tests
         }
 
         [Test]
-        public void ConditionOrder_IsQuietReverbNoisy()
+        public void ConditionOrder_IsQuietNoisyReverb()
         {
-            CollectionAssert.AreEqual(new[] { Condition.Quiet, Condition.Reverb, Condition.Noisy }, TrialPlanner.ConditionOrder);
+            CollectionAssert.AreEqual(new[] { Condition.Quiet, Condition.Noisy, Condition.Reverb }, TrialPlanner.ConditionOrder);
         }
 
         [Test]
@@ -146,7 +146,7 @@ namespace HumPer.Tests
             Assert.AreEqual(1, q.BlockIndex);
             Assert.AreEqual(1, q.TrialsDone);
             Assert.AreEqual(SessionStatus.InProgress, q.Status);
-            StringAssert.Contains("Reverb", q.Describe());
+            StringAssert.Contains("Noisy", q.Describe());
         }
 
         [Test]
@@ -194,6 +194,37 @@ namespace HumPer.Tests
                     Assert.IsFalse(Localization.Get(key).StartsWith("["), key + " missing in " + language);
             }
             Localization.Set(Language.English);
+        }
+
+        [Test]
+        public void RoomAcoustics_ReflectionForRt60_RoundTrips_AndGrowsWithRt60()
+        {
+            RoomAcousticsMath.BoxVolumeSurface(8f, 10f, 3.5f, out float v, out float s);
+            Assert.AreEqual(280f, v, 1e-3f);
+            Assert.AreEqual(286f, s, 1e-3f);
+            float r02 = RoomAcousticsMath.ReflectionForRt60(0.2f, v, s);
+            float r07 = RoomAcousticsMath.ReflectionForRt60(0.7f, v, s);
+            float r3 = RoomAcousticsMath.ReflectionForRt60(3f, v, s);
+            Assert.Less(r02, r07);
+            Assert.Less(r07, r3);
+            Assert.AreEqual(0.894f, r07, 0.005f);
+            foreach (var rt in new[] { 0.2f, 0.7f, 3f })
+                Assert.AreEqual(rt, RoomAcousticsMath.Rt60ForReflection(RoomAcousticsMath.ReflectionForRt60(rt, v, s), v, s), 0.01f);
+            // energy reading needs a lower coefficient for the same RT60
+            Assert.Less(RoomAcousticsMath.ReflectionForRt60(0.7f, v, s, amplitude: false), r07);
+        }
+
+        [Test]
+        public void ConditionAcoustics_QuietNoisyReverb_HaveTheProtocolValues()
+        {
+            Assert.AreEqual(0.2f, ConditionAcoustics.Rt60(Condition.Quiet));
+            Assert.AreEqual(0.2f, ConditionAcoustics.Rt60(Condition.Practice));
+            Assert.AreEqual(0.7f, ConditionAcoustics.Rt60(Condition.Noisy));
+            Assert.AreEqual(2.2f, ConditionAcoustics.Rt60(Condition.Reverb));
+            Assert.IsFalse(ConditionAcoustics.HasBackground(Condition.Quiet));
+            Assert.IsFalse(ConditionAcoustics.HasBackground(Condition.Practice));
+            Assert.IsTrue(ConditionAcoustics.HasBackground(Condition.Noisy));
+            Assert.IsTrue(ConditionAcoustics.HasBackground(Condition.Reverb));
         }
     }
 }

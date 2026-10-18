@@ -8,8 +8,8 @@ namespace HumPer
     /// </summary>
     public class RoomInfo : MonoBehaviour
     {
-        public float width = 8f;   // x
-        public float depth = 10f;  // z
+        public float width = 8.72f;   // x
+        public float depth = 15f;  // z
         public float height = 3.5f; // y
     }
 }

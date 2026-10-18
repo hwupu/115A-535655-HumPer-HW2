@@ -15,16 +15,12 @@
 ## Sprint 2: verify on hardware and finish
 | To Do | Doing | Done |
 |---|---|---|
-| PB-16 standalone headset test | | |
-| PB-14 reverb material (calculated candidates ready; measure) | | |
-| PB-15 RT60 measurement tool (needs approval) | | |
-| PB-17 cardboard image | | |
-|  | | PB-18 Temp step kept as "Hot Fix" (closed) |
-| PB-20 analysis export | | |
-|  | | PB-21 resume / cancel participant (closed)
-|  | | PB-24 setup instructions before practice (closed)
-|  | | PB-22 number pad instead of system keyboard (closed); recenter follows (GUI + stimuli) |
-| PB-23 CSV retrieval on macOS | | |
+| PB-15 RT60 measurement tool (needs approval) | | PB-14 reverb material (superseded, closed) |
+| PB-17 cardboard image (PO to provide) | | PB-16 standalone headset test |
+| PB-20 analysis export (PO later) | | PB-18 "Hot Fix" step, PB-21 resume / cancel |
+| PB-23 CSV retrieval on macOS (untested) | | PB-22 number pad, PB-24 setup instructions |
+| | | PB-25 controller labels (tried, reverted), PB-26 fixed backgrounds, PB-27 stimulus pulse |
+| | | PB-28 Debug reverb + playback, PB-29 acoustics per condition, PB-30 room 8.72 x 3.5 x 15 |
 
 ## Working agreement
 - Small steps. Each step is verified headless before handoff: a copy of the project is run with Unity in batch mode (setup steps + EditMode tests), because the PO's editor is open on the real project.

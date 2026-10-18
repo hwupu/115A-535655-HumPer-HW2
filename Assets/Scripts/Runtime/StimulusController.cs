@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 namespace HumPer
@@ -14,6 +15,8 @@ namespace HumPer
         public MetaXRAudioSource audioMeta;      // for the gain boost
         public Transform debugSphere;            // shown after a trial in Debug mode only
         public AudioClip clip;
+        [Tooltip("Silence between two plays of the clip.")]
+        public float gapSec = 1f;
         /// <summary>Meta gain boost currently set on the stimulus' MetaXRAudioSource (inspector value; this script does not change it).</summary>
         public float GainBoostDb => audioMeta != null ? audioMeta.GainBoostDb : 0f;
 
@@ -21,6 +24,7 @@ namespace HumPer
         Quaternion _yaw = Quaternion.identity;
         float _radius = 1f;
         float _visualAz, _audioAz;
+        Coroutine _pulse;
 
         /// <summary>Level of the audio stimulus in the software chain: clip RMS (dBFS) + the Meta gain boost value. Volume stays at unity.</summary>
         public float LevelDbfs { get; private set; } = -200f;
@@ -28,7 +32,7 @@ namespace HumPer
         void Awake()
         {
             audioSource.playOnAwake = false;
-            audioSource.loop = true;
+            audioSource.loop = false; // pulsed by PulseLoop: clip, then a pause, then the clip again
             audioSource.volume = 1f; // unity gain: loudness comes from the headset volume
             if (clip != null) audioSource.clip = clip;
             // The radius is locked, so no distance attenuation is wanted (practice 1.2 m vs trials 1.0 m must sound equally loud).
@@ -71,8 +75,27 @@ namespace HumPer
         }
 
         public void ShowVisual(bool on) => visual.gameObject.SetActive(on);
-        public void PlayAudio() => audioSource.Play();
-        public void StopAudio() => audioSource.Stop();
+        /// <summary>Start the pulse train: the clip (2 s) plays, then <see cref="gapSec"/> of silence, repeatedly until <see cref="StopAudio"/>.</summary>
+        public void PlayAudio()
+        {
+            StopAudio();
+            _pulse = StartCoroutine(PulseLoop());
+        }
+
+        IEnumerator PulseLoop()
+        {
+            var cycle = new WaitForSeconds(audioSource.clip.length + gapSec); // scaled time: pauses with the cancel dialog
+            while (true)
+            {
+                audioSource.Play();
+                yield return cycle;
+            }
+        }
+        public void StopAudio()
+        {
+            if (_pulse != null) { StopCoroutine(_pulse); _pulse = null; }
+            audioSource.Stop();
+        }
 
         public void ShowDebugSphere(float audioAzDeg)
         {
