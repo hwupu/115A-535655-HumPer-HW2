@@ -6,20 +6,17 @@ namespace HumPer
     /// <summary>
     /// Room acoustics for the Reverb condition.
     /// 1. Turns Meta XR Audio's room modeling and late reverberation on. Both are OFF by default in the plugin; a Unity project normally
-    ///    switches them on with the "Meta XR Audio Reflection" effect on an audio mixer group. This project has no mixer, so without this
-    ///    nothing reverberant is ever rendered (sources with EnableAcoustics only get the direct sound).
-    /// 2. Lets the Debug bench try different reverberation times. Meta's shoebox component only offers material presets, so for a custom
-    ///    value it is switched off and the room is sent to the plugin from here, with one uniform reflection coefficient on all six
-    ///    surfaces, calculated from the target RT60 and the room size (Eyring, see <see cref="RoomAcousticsMath"/>). The RT60 is
-    ///    calculated, not measured; the coefficient reading (amplitude or energy) is an assumption. <see cref="UsePreset"/> hands control
-    ///    back to the component (its material preset).
+    ///    switches them on with the "Meta XR Audio Reflection" effect on an audio mixer group (this project has one, made by Step 4).
+    /// 2. Sets the reverberation time. Meta's shoebox component only offers material presets, so the component is switched off and the
+    ///    room is sent to the plugin from here, with one uniform reflection coefficient on all six surfaces. The coefficient for a target
+    ///    RT60 comes from a MEASURED table (<see cref="Rt60Calibration"/>), not from a formula: Eyring's formula was off by 20-170 %.
+    ///    <see cref="UsePreset"/> hands control back to the component (its material preset). Check the result on the headset with the Debug
+    ///    bench "Measure RT60" (<see cref="Rt60Meter"/>).
     /// </summary>
     public class ReverbTuner : MonoBehaviour
     {
         public MetaXRAudioRoomAcousticProperties room;
         public RoomInfo roomInfo;
-        [Tooltip("true: coefficient is a pressure coefficient (alpha = 1 - R^2); false: an energy coefficient (alpha = 1 - R).")]
-        public bool amplitudeReading = true;
 
         public bool Custom { get; private set; }
         public float TargetRt60 { get; private set; }
@@ -47,12 +44,24 @@ namespace HumPer
             if (this.room == null) return;
             ComputeRoom(out float v, out float s);
             TargetRt60 = Mathf.Max(0.05f, seconds);
-            Reflection = RoomAcousticsMath.ReflectionForRt60(TargetRt60, v, s, amplitudeReading);
+            Reflection = Rt60Calibration.ReflectionForRt60(TargetRt60, v, s);
             for (int i = 0; i < _walls.Length; i++) _walls[i] = Reflection;
             Custom = true;
             this.room.enabled = false; // its Update would overwrite the room every frame
             Push();
-            Debug.Log("[HumPer] Reverb: custom RT60 " + TargetRt60.ToString("0.00") + " s (calculated), reflection " + Reflection.ToString("0.000"));
+            Debug.Log("[HumPer] Reverb: custom RT60 " + TargetRt60.ToString("0.00") + " s (calibrated), reflection " + Reflection.ToString("0.000"));
+        }
+
+        /// <summary>Set the uniform reflection coefficient directly (calibration experiments). RT60 target is unknown then.</summary>
+        public void SetReflection(float reflection)
+        {
+            if (room == null) return;
+            Reflection = Mathf.Clamp01(reflection);
+            TargetRt60 = 0f;
+            for (int i = 0; i < _walls.Length; i++) _walls[i] = Reflection;
+            Custom = true;
+            room.enabled = false;
+            Push();
         }
 
         public void UsePreset()
@@ -70,12 +79,12 @@ namespace HumPer
             foreach (var preset in presets)
                 foreach (float band in MetaXRAudioRoomAcousticProperties.GetMaterialPresetBands(preset)) sum += band;
             ComputeRoom(out float v, out float s);
-            return RoomAcousticsMath.Rt60ForReflection(sum / (presets.Length * 4), v, s, amplitudeReading);
+            return Rt60Calibration.Rt60ForReflection(sum / (presets.Length * 4), v, s);
         }
 
         public string Describe() => Custom
-            ? "RT60 " + TargetRt60.ToString("0.00") + " s (calculated, R " + Reflection.ToString("0.000") + ")"
-            : "Meta preset " + (room != null ? room.floorMaterial.ToString() : "?") + ", RT60 about " + PresetRt60().ToString("0.0") + " s (calculated)";
+            ? "RT60 " + TargetRt60.ToString("0.00") + " s (calibrated, R " + Reflection.ToString("0.000") + ")"
+            : "Meta preset " + (room != null ? room.floorMaterial.ToString() : "?") + ", RT60 about " + PresetRt60().ToString("0.0") + " s (calibrated estimate)";
 
         void Update()
         {

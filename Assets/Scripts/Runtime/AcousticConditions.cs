@@ -5,7 +5,7 @@ namespace HumPer
     /// <summary>
     /// Switches the acoustic condition. Every condition is rendered in the Meta XR Audio shoebox room (the stimulus and the backgrounds
     /// have Enable Acoustics on; the room is rendered by the mixer effect "Meta XR Audio Reflection"). The conditions differ in the
-    /// reverb time and the background: Quiet RT60 0.2 s, Noisy 0.7 s plus the three background recordings, Reverb 2.2 s with the
+    /// reverb time and the background: Quiet RT60 0.3 s, Noisy 0.7 s plus the three background recordings, Reverb 2.2 s with the
     /// background still playing (see <see cref="ConditionAcoustics"/>). The backgrounds are spatialized at eye level, 2 m from the head
     /// (left, right, back), loop together at unity gain and stay fixed in the room once placed. The only software gain is the
     /// stimulus' Meta gain boost.
@@ -25,8 +25,12 @@ namespace HumPer
 
         public Condition Current { get; private set; } = Condition.Quiet;
 
-        /// <summary>Debug bench: play the backgrounds whatever the condition is.</summary>
-        public bool ForceBackground { get; private set; }
+        /// <summary>Debug bench: play or pause the backgrounds whatever the condition says (Auto = the condition decides).</summary>
+        public enum BackgroundOverride { Auto, On, Off }
+        public BackgroundOverride BackgroundMode { get; private set; } = BackgroundOverride.Auto;
+
+        /// <summary>True while the backgrounds are paused by the Debug bench (they resume where they stopped).</summary>
+        public bool BackgroundPaused { get; private set; }
 
         /// <summary>Debug bench: override the condition's reverb time (custom value or Meta's material preset).</summary>
         public RtMode Mode { get; private set; } = RtMode.ConditionDefault;
@@ -71,15 +75,31 @@ namespace HumPer
 
             ApplyReverb(condition);
 
-            bool background = ConditionAcoustics.HasBackground(condition) || ForceBackground;
-            if (background && !_backgroundOn) PlaceBackground(headPosition, yaw);
-            foreach (var s in backgroundSources)
+            bool wanted = BackgroundMode == BackgroundOverride.On || (BackgroundMode == BackgroundOverride.Auto && ConditionAcoustics.HasBackground(condition));
+            bool pause = BackgroundMode == BackgroundOverride.Off && ConditionAcoustics.HasBackground(condition) && _backgroundOn; // Debug: pause, resume later
+            bool background = wanted;
+            if (wanted)
             {
-                if (background) { if (s.clip != null && !s.isPlaying) s.Play(); }
-                else s.Stop();
+                if (!_backgroundOn && !BackgroundPaused) PlaceBackground(headPosition, yaw);
+                foreach (var s in backgroundSources)
+                {
+                    if (BackgroundPaused) s.UnPause();
+                    else if (s.clip != null && !s.isPlaying) s.Play();
+                }
+                BackgroundPaused = false;
+            }
+            else if (pause || BackgroundPaused && BackgroundMode == BackgroundOverride.Off && ConditionAcoustics.HasBackground(condition))
+            {
+                foreach (var s in backgroundSources) s.Pause();
+                BackgroundPaused = true;
+            }
+            else
+            {
+                foreach (var s in backgroundSources) s.Stop();
+                BackgroundPaused = false;
             }
             _backgroundOn = background;
-            Debug.Log("[HumPer] Acoustic condition: " + condition + ", reverb " + (CurrentRt60 > 0f ? CurrentRt60.ToString("0.0#") + " s (calculated)" : "Meta preset") +
+            Debug.Log("[HumPer] Acoustic condition: " + condition + ", reverb " + (CurrentRt60 > 0f ? CurrentRt60.ToString("0.0#") + " s (calibrated)" : "Meta preset") +
                       (background ? ", background " + _backgroundDbfs.ToString("0.0") + " dBFS" : ", no background"));
         }
 
@@ -114,20 +134,30 @@ namespace HumPer
         public void SetConditionDefault(Condition condition, Vector3 headPosition, Quaternion yaw)
         {
             Mode = RtMode.ConditionDefault;
+            BackgroundMode = BackgroundOverride.Auto;
             SetCondition(condition, headPosition, yaw);
         }
 
-        public void SetBackgroundForced(bool on, Vector3 headPosition, Quaternion yaw)
+        /// <summary>Debug bench: start or pause the backgrounds, whatever the condition (pausing keeps the place in the recordings).</summary>
+        public void SetBackgroundPlaying(bool on, Vector3 headPosition, Quaternion yaw)
         {
-            ForceBackground = on;
+            BackgroundMode = on ? BackgroundOverride.On : BackgroundOverride.Off;
             SetCondition(Current, headPosition, yaw);
+        }
+
+        /// <summary>Pause / resume the backgrounds where they are (used while the reverb time is measured).</summary>
+        public void PauseBackground(bool pause)
+        {
+            if (!_backgroundOn) return;
+            foreach (var s in backgroundSources) { if (pause) s.Pause(); else s.UnPause(); }
         }
 
         /// <summary>Stop the backgrounds and clear the Debug overrides.</summary>
         public void StopAll()
         {
             _backgroundOn = false;
-            ForceBackground = false;
+            BackgroundMode = BackgroundOverride.Auto;
+            BackgroundPaused = false;
             Mode = RtMode.ConditionDefault;
             foreach (var s in backgroundSources) s.Stop();
         }

@@ -317,30 +317,25 @@ namespace HumPer.EditorTools
             var orange = new Color(0.42f, 0.32f, 0.12f, 1f);
             Label(bench, "Title", "Debug test bench", 40, new Vector2(0, 318), new Vector2(800, 50));
             benchPanel.statusText = Label(bench, "Status", "", 22, new Vector2(0, 268), new Vector2(960, 56));
-            benchPanel.quietButton = MakeButton(bench, "Quiet", "Quiet", 34, new Vector2(-310, 195), new Vector2(290, 80), gray, out _);
-            benchPanel.reverbButton = MakeButton(bench, "Reverb", "Reverb", 34, new Vector2(310, 195), new Vector2(290, 80), gray, out _);
-            benchPanel.noisyButton = MakeButton(bench, "Noisy", "Noisy", 34, new Vector2(0, 195), new Vector2(290, 80), gray, out _);
-            // reverb time (calculated from the room size; Meta only offers material presets)
-            benchPanel.rt02Button = MakeButton(bench, "RT60 0.2", "0.2 s", 30, new Vector2(-345, 110), new Vector2(210, 70), gray, out _);
-            benchPanel.rt07Button = MakeButton(bench, "RT60 0.7", "0.7 s", 30, new Vector2(-115, 110), new Vector2(210, 70), gray, out _);
-            benchPanel.rt22Button = MakeButton(bench, "RT60 2.2", "2.2 s", 30, new Vector2(115, 110), new Vector2(210, 70), gray, out _);
-            benchPanel.presetButton = MakeButton(bench, "Reverb Preset", "Preset", 24, new Vector2(345, 110), new Vector2(210, 70), gray, out benchPanel.presetLabel);
-            benchPanel.rtDownButton = MakeButton(bench, "RT60 Down", "-10%", 30, new Vector2(-400, 35), new Vector2(150, 60), gray, out _);
-            benchPanel.reverbReadout = Label(bench, "Reverb Readout", "", 26, new Vector2(0, 35), new Vector2(620, 60));
-            benchPanel.rtUpButton = MakeButton(bench, "RT60 Up", "+10%", 30, new Vector2(400, 35), new Vector2(150, 60), gray, out _);
+            // reverb time = condition (one-to-one): 0.3 s Quiet, 0.7 s Noisy (+ background), 2.2 s Reverb (+ background); Meta's preset
+            benchPanel.rtQuietButton = MakeButton(bench, "RT60 0.3 Quiet", "0.3 s  Quiet", 28, new Vector2(-345, 190), new Vector2(220, 80), gray, out _);
+            benchPanel.rtNoisyButton = MakeButton(bench, "RT60 0.7 Noisy", "0.7 s  Noisy", 28, new Vector2(-115, 190), new Vector2(220, 80), gray, out _);
+            benchPanel.rtReverbButton = MakeButton(bench, "RT60 2.2 Reverb", "2.2 s  Reverb", 28, new Vector2(115, 190), new Vector2(220, 80), gray, out _);
+            benchPanel.presetButton = MakeButton(bench, "Reverb Preset", "Preset", 24, new Vector2(345, 190), new Vector2(220, 80), gray, out benchPanel.presetLabel);
+            benchPanel.reverbReadout = Label(bench, "Reverb Readout", "", 24, new Vector2(0, 110), new Vector2(940, 60));
             // playback tests
-            benchPanel.stimulusToggleButton = MakeButton(bench, "Play Stimulus", "", 26, new Vector2(-250, -45), new Vector2(480, 70), gray, out benchPanel.stimulusToggleLabel);
-            benchPanel.backgroundToggleButton = MakeButton(bench, "Play Background", "", 26, new Vector2(250, -45), new Vector2(480, 70), gray, out benchPanel.backgroundToggleLabel);
-            benchPanel.sphereToggleButton = MakeButton(bench, "Sphere Toggle", "", 28, new Vector2(0, -125), new Vector2(730, 70), gray, out benchPanel.sphereToggleLabel);
-            benchPanel.runTrialButton = MakeButton(bench, "Run Trial", "Run trial", 34, new Vector2(-250, -210), new Vector2(480, 80), green, out _);
-            benchPanel.practiceTrialButton = MakeButton(bench, "Practice Trial", "Practice-style trial", 30, new Vector2(250, -210), new Vector2(480, 80), gray, out _);
-            benchPanel.backButton = MakeButton(bench, "Back", "Back to menu", 30, new Vector2(0, -300), new Vector2(400, 70),
+            benchPanel.stimulusToggleButton = MakeButton(bench, "Play Stimulus", "", 26, new Vector2(-250, 30), new Vector2(480, 70), gray, out benchPanel.stimulusToggleLabel);
+            benchPanel.backgroundToggleButton = MakeButton(bench, "Play Background", "", 26, new Vector2(250, 30), new Vector2(480, 70), gray, out benchPanel.backgroundToggleLabel);
+            benchPanel.sphereToggleButton = MakeButton(bench, "Sphere Toggle", "", 24, new Vector2(-250, -50), new Vector2(480, 70), gray, out benchPanel.sphereToggleLabel);
+            benchPanel.measureButton = MakeButton(bench, "Measure RT60", "Measure RT60 (5 s)", 26, new Vector2(250, -50), new Vector2(480, 70), orange, out _);
+            benchPanel.runTrialButton = MakeButton(bench, "Run Trial", "Run trial", 34, new Vector2(-250, -145), new Vector2(480, 85), green, out _);
+            benchPanel.practiceTrialButton = MakeButton(bench, "Practice Trial", "Practice-style trial", 30, new Vector2(250, -145), new Vector2(480, 85), gray, out _);
+            benchPanel.backButton = MakeButton(bench, "Back", "Back to menu", 30, new Vector2(0, -250), new Vector2(400, 75),
                                                new Color(0.42f, 0.2f, 0.2f, 1f), out _);
-            benchPanel.SetCondition(Condition.Quiet);
             benchPanel.SetSphereAlways(false);
             benchPanel.SetStimulusPlaying(false);
-            benchPanel.SetBackgroundPlaying(false);
-            benchPanel.SetReverb("", 0);
+            benchPanel.SetBackgroundState(false, false);
+            benchPanel.SetReverb("", 1);
             refs.debugPanel = benchPanel;
 
             // --- Y button: cancel this participant? Upper region, on top of every screen, English (experimenter) ---
@@ -577,7 +572,7 @@ namespace HumPer.EditorTools
                     if (p.propertyType != SerializedPropertyType.ObjectReference || p.propertyPath == "m_Script") continue;
                     if (p.objectReferenceValue != null) continue;
                     // optional references
-                    if (p.name == "cjkFont" || p.name == "clip" || p.name == "hint" || p.name == "laserMaterial") continue;
+                    if (p.name == "cjkFont" || p.name == "clip" || p.name == "hint" || p.name == "laserMaterial" || p.name == "rt60Meter") continue;
                     Debug.LogError("[HumPer] Validate: " + behaviour.GetType().Name + "." + p.propertyPath + " is not assigned (" + behaviour.name + ")", behaviour);
                     problems++;
                 }

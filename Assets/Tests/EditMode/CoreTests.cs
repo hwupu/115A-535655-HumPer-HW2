@@ -101,7 +101,7 @@ namespace HumPer.Tests
             Assert.AreEqual(ExperimentLog.Header, lines[0]);
             StringAssert.StartsWith("session_start,2026-10-18T09:00:00.000,0,P01,EXPERIMENT,,", lines[1]);
             StringAssert.StartsWith("practice_begin,2026-10-18T09:00:05.000,5,P01,EXPERIMENT,practice,", lines[2]);
-            Assert.AreEqual("trial,2026-10-18T09:00:15.000,15,P01,EXPERIMENT,practice,1,0,30,12.5,12.5,8.25,-17.5,,", lines[3]);
+            Assert.AreEqual("trial,2026-10-18T09:00:15.000,15,P01,EXPERIMENT,practice,1,0,30,12.5,12.5,8.25,-17.5,,,", lines[3]);
         }
 
         [Test]
@@ -217,14 +217,77 @@ namespace HumPer.Tests
         [Test]
         public void ConditionAcoustics_QuietNoisyReverb_HaveTheProtocolValues()
         {
-            Assert.AreEqual(0.2f, ConditionAcoustics.Rt60(Condition.Quiet));
-            Assert.AreEqual(0.2f, ConditionAcoustics.Rt60(Condition.Practice));
+            Assert.AreEqual(0.3f, ConditionAcoustics.Rt60(Condition.Quiet));
+            Assert.AreEqual(0.3f, ConditionAcoustics.Rt60(Condition.Practice));
             Assert.AreEqual(0.7f, ConditionAcoustics.Rt60(Condition.Noisy));
             Assert.AreEqual(2.2f, ConditionAcoustics.Rt60(Condition.Reverb));
             Assert.IsFalse(ConditionAcoustics.HasBackground(Condition.Quiet));
             Assert.IsFalse(ConditionAcoustics.HasBackground(Condition.Practice));
             Assert.IsTrue(ConditionAcoustics.HasBackground(Condition.Noisy));
             Assert.IsTrue(ConditionAcoustics.HasBackground(Condition.Reverb));
+        }
+
+        [Test]
+        public void Log_TrialRowHasMeasuredRt60Column()
+        {
+            var sw = new StringWriter();
+            var log = new ExperimentLog(sw, () => DateTime.UnixEpoch, "P", debug: false, writeHeader: false);
+            log.Trial("noisy", 2, 7.5f, 60f, 10f, 5f, -20f, -18.2f, 0.68f);
+            StringAssert.Contains(",-20,-18.2,0.68,", sw.ToString());
+            StringAssert.Contains("rt60_measured_s,note", ExperimentLog.Header);
+        }
+
+        // Synthetic impulse response: exponentially decaying noise whose energy falls 60 dB in rt60 seconds.
+        static float[] SyntheticDecay(float rt60, float sampleRate, float seconds, int seed)
+        {
+            var rng = new Random(seed);
+            var energy = new float[(int)(sampleRate * seconds)];
+            for (int i = 1; i < energy.Length; i++)
+            {
+                double t = i / sampleRate;
+                double gauss = Math.Sqrt(-2.0 * Math.Log(1.0 - rng.NextDouble())) * Math.Cos(2.0 * Math.PI * rng.NextDouble());
+                double amp = gauss * Math.Pow(10.0, -3.0 * t / rt60);
+                energy[i] = (float)(amp * amp);
+            }
+            energy[0] = 1f; // the direct sound
+            return energy;
+        }
+
+        [TestCase(0.2f)]
+        [TestCase(0.7f)]
+        [TestCase(2.2f)]
+        public void Rt60Estimator_RecoversTheDecayTime(float rt60)
+        {
+            var energy = SyntheticDecay(rt60, 48000f, rt60 * 2.5f, seed: 11);
+            var r = Rt60Estimator.Estimate(energy, 0, energy.Length, 48000f);
+            Assert.IsTrue(r.Valid, r.ToString());
+            Assert.AreEqual(rt60, r.Rt60T20, rt60 * 0.15f);
+        }
+
+        [Test]
+        public void Rt60Estimator_RejectsSilenceAndShortDecays()
+        {
+            Assert.IsFalse(Rt60Estimator.Estimate(new float[48000], 0, 48000, 48000f).Valid);
+            var tooShort = SyntheticDecay(5f, 48000f, 0.3f, seed: 3); // 0.3 s of a 5 s decay never reaches -25 dB
+            Assert.IsFalse(Rt60Estimator.Estimate(tooShort, 0, tooShort.Length, 48000f).Valid);
+        }
+
+        [Test]
+        public void Rt60Calibration_MapsTargetsToMeasuredCoefficients_AndScalesWithRoom()
+        {
+            RoomAcousticsMath.BoxVolumeSurface(8.72f, 15f, 3.5f, out float v, out float s);
+            float r02 = Rt60Calibration.ReflectionForRt60(0.2f, v, s);   // below the lowest measured value: clamped
+            float r07 = Rt60Calibration.ReflectionForRt60(0.7f, v, s);
+            float r22 = Rt60Calibration.ReflectionForRt60(2.2f, v, s);
+            Assert.AreEqual(0.5f, r02, 1e-4f);
+            Assert.AreEqual(0.81f, r07, 0.01f);
+            Assert.AreEqual(0.952f, r22, 0.005f);
+            Assert.Less(r02, r07);
+            Assert.Less(r07, r22);
+            Assert.AreEqual(0.7f, Rt60Calibration.Rt60ForReflection(r07, v, s), 0.01f);
+            Assert.AreEqual(2.2f, Rt60Calibration.Rt60ForReflection(r22, v, s), 0.02f);
+            // a room with twice the volume per surface has longer reverberation at the same coefficient, so it needs a lower one
+            Assert.Less(Rt60Calibration.ReflectionForRt60(0.7f, v * 2f, s), r07);
         }
     }
 }

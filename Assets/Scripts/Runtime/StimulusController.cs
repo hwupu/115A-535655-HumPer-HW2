@@ -25,6 +25,7 @@ namespace HumPer
         float _radius = 1f;
         float _visualAz, _audioAz;
         Coroutine _pulse;
+        AudioClip _clipBeforeProbe;
 
         /// <summary>Level of the audio stimulus in the software chain: clip RMS (dBFS) + the Meta gain boost value. Volume stays at unity.</summary>
         public float LevelDbfs { get; private set; } = -200f;
@@ -91,6 +92,21 @@ namespace HumPer
                 yield return cycle;
             }
         }
+        /// <summary>RT60 measurement: play a probe clip (an impulse) from the stimulus source instead of the noise.</summary>
+        public void PlayProbe(AudioClip probe)
+        {
+            StopAudio();
+            _clipBeforeProbe = audioSource.clip;
+            audioSource.clip = probe;
+            audioSource.Play();
+        }
+
+        public void EndProbe()
+        {
+            audioSource.Stop();
+            if (_clipBeforeProbe != null) { audioSource.clip = _clipBeforeProbe; _clipBeforeProbe = null; }
+        }
+
         public void StopAudio()
         {
             if (_pulse != null) { StopCoroutine(_pulse); _pulse = null; }

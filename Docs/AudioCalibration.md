@@ -29,3 +29,6 @@ The 500 cd/m2 goal is above the Quest 3 hardware limit (roughly 100 nits). Ticke
 
 ## Update 2026-10-18
 The material question above is superseded: the RT60 per condition (0.2 / 0.7 / 2.2 s) is now set directly through a calculated reflection coefficient (ADR-0005). The table remains useful as the calculated RT60 of Meta's presets in the old 8 x 10 x 3.5 m room; for the new room (8.72 x 3.5 x 15 m, V = 458 m3, S = 428 m2) the Debug bench shows the calculated RT60 of the current preset.
+
+## Measured relation (2026-10-18, PB-15)
+Impulse response through the real chain (Meta spatializer + reflection mixer effect, Windows plugin, room 8.72 x 3.5 x 15 m, source 2 m ahead, uniform coefficient on all six surfaces), T30 in seconds: R 0.5 -> 0.30, 0.6 -> 0.33, 0.7 -> 0.42, 0.8 -> 0.65, 0.85 -> 0.89, 0.9 -> 1.30, 0.94 -> 1.89, 0.95 -> 2.11, 0.96 -> 2.49, 0.97 -> 3.05, 0.98 -> 3.94, 0.99 -> 5.74. This replaces the Eyring-based table above for the room used in the experiment (the Eyring numbers were too short by 20-170 %). The Concrete preset (mean R about 0.98) therefore gives about 4 s here, not 4.7 s.

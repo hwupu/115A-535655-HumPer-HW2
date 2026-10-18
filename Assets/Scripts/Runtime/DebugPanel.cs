@@ -9,29 +9,21 @@ namespace HumPer
     /// </summary>
     public class DebugPanel : MonoBehaviour
     {
-        public Button quietButton, reverbButton, noisyButton;
         public Button sphereToggleButton;
         public Text sphereToggleLabel;
         public Button runTrialButton, practiceTrialButton, backButton;
         public Text statusText;
 
         [Header("Reverb and playback tests")]
-        public Button rt02Button, rt07Button, rt22Button, presetButton, rtDownButton, rtUpButton;
+        public Button rtQuietButton, rtNoisyButton, rtReverbButton, presetButton;
         public Text presetLabel;
         public Text reverbReadout;
-        public Button stimulusToggleButton, backgroundToggleButton;
+        public Button stimulusToggleButton, backgroundToggleButton, measureButton;
         public Text stimulusToggleLabel, backgroundToggleLabel;
 
 
         public Color selectedColor = new Color(0.2f, 0.45f, 0.8f, 1f);
         public Color idleColor = new Color(0.22f, 0.25f, 0.32f, 1f);
-
-        public void SetCondition(Condition condition)
-        {
-            Tint(quietButton, condition == Condition.Quiet);
-            Tint(reverbButton, condition == Condition.Reverb);
-            Tint(noisyButton, condition == Condition.Noisy);
-        }
 
         public void SetSphereAlways(bool always) =>
             sphereToggleLabel.text = always ? "Audio sphere: ALWAYS visible" : "Audio sphere: only after confirm";
@@ -42,19 +34,19 @@ namespace HumPer
             Tint(stimulusToggleButton, on);
         }
 
-        public void SetBackgroundPlaying(bool on)
+        public void SetBackgroundState(bool playing, bool paused)
         {
-            backgroundToggleLabel.text = on ? "Background: PLAYING (tap to stop)" : "Play background noise";
-            Tint(backgroundToggleButton, on);
+            backgroundToggleLabel.text = playing ? "Background: PLAYING (tap to pause)" : paused ? "Background: PAUSED (tap to resume)" : "Play background noise";
+            Tint(backgroundToggleButton, playing);
         }
 
-        /// <summary>Highlight the active reverb button (1 = 0.2 s, 2 = 0.7 s, 3 = 2.2 s, 4 = Meta preset, else none) and show the readout.</summary>
+        /// <summary>Highlight the active reverb button (1 = Quiet 0.3 s, 2 = Noisy 0.7 s, 3 = Reverb 2.2 s, 4 = Meta preset, else none) and show the readout.</summary>
         public void SetReverb(string readout, int active)
         {
             reverbReadout.text = readout;
-            Tint(rt02Button, active == 1);
-            Tint(rt07Button, active == 2);
-            Tint(rt22Button, active == 3);
+            Tint(rtQuietButton, active == 1);
+            Tint(rtNoisyButton, active == 2);
+            Tint(rtReverbButton, active == 3);
             Tint(presetButton, active == 4);
         }
 
