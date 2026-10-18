@@ -18,7 +18,7 @@ Product Owner: researcher. Status: Done / Open / Closed (won't do or accepted).
 | PB-12 | Stimulus volume | Level acceptable | Closed (PO happy; PO to measure with a level meter later) |
 | PB-13 | Luminance 500 cd/m2 | Reach the target brightness | Closed (hardware limit of Quest 3) |
 | PB-14 | Reverb material | Choose a shoebox material for RT60 0.7 s (and 0.2 s); verify by measurement | Closed: superseded by RT60 set directly per condition (0.2 / 0.7 / 2.2 s, calculated), see PB-29; measuring the real RT60 (PB-15) is still recommended |
-| PB-15 | RT60 measurement tool | Debug bench button and a measurement at the start of every condition block; measured T20 logged with every trial (`rt60_measured_s`); coefficient table calibrated by measurement | Built (headset check pending) |
+| PB-15 | RT60 measurement tool | Debug bench button and a measurement at the start of every condition block; measured T20 logged with every trial (`rt60_measured_s`); coefficient table calibrated by measurement | Closed |
 | PB-16 | Standalone headset test | Build and run the APK on Quest 3 (only Quest Link tested so far); verify keyboard, CSV in MQDH | **Open** |
 | PB-17 | Cardboard image | Replace the placeholder with the real image | **Open** (PO to provide) |
 | PB-18 | "Temp" step | Keep it as the "Hot Fix" step (renamed) | Closed (kept as Hot Fix) |

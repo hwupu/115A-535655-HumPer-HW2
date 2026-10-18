@@ -15,7 +15,7 @@
 ## Sprint 2: verify on hardware and finish
 | To Do | Doing | Done |
 |---|---|---|
-| | PB-15 RT60 measurement tool (built; check on the headset) | PB-14 reverb material (superseded, closed) |
+| | | PB-14 reverb material (superseded), PB-15 RT60 measurement tool (closed) |
 | PB-17 cardboard image (PO to provide) | | PB-16 standalone headset test |
 | PB-20 analysis export (PO later) | | PB-18 "Hot Fix" step, PB-21 resume / cancel |
 | PB-23 CSV retrieval on macOS (untested) | | PB-22 number pad, PB-24 setup instructions |
