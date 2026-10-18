@@ -21146,7 +21146,7 @@ MonoBehaviour:
   rig: {fileID: 1554177456}
   reverb: {fileID: 1921935583}
   continueBackgroundOverRest: 1
-  measureRt60AtBlockStart: 1
+  measureRt60AtBlockStart: 0
   rt60Meter: {fileID: 0}
   practiceRadiusM: 1.2
   practiceVisualAzDeg: 0

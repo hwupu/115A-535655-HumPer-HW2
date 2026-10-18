@@ -27,7 +27,7 @@ namespace HumPer
         [Tooltip("The background noise keeps playing over the rest screen between Noisy and Reverb (otherwise it restarts with the Reverb block).")]
         public bool continueBackgroundOverRest = true;
         [Tooltip("Measure the reverberation time (impulse response of the rendered audio) at the start of every condition block and log it with every trial, for reference.")]
-        public bool measureRt60AtBlockStart = true;
+        public bool measureRt60AtBlockStart = false;
         public Rt60Meter rt60Meter;
 
         [Header("Practice trial geometry (fixed, different from the experiment trials)")]
