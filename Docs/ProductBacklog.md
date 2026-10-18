@@ -23,7 +23,7 @@ Product Owner: researcher. Status: Done / Open / Closed (won't do or accepted).
 | PB-17 | Cardboard image | Replace the placeholder with the real image | **Open** (PO to provide) |
 | PB-18 | "Temp" step | Keep it as the "Hot Fix" step (renamed) | Closed (kept as Hot Fix) |
 | PB-19 | Docs and README | README, design, setup, data format, decisions, prompt log, backlog | Done |
-| PB-20 | Analysis export | Aggregate CSVs per participant | Open (PO will do it later) |
+| PB-20 | Analysis export | Aggregate CSVs per participant | **Closed** (`Tools/prepare_for_spss.sh`, guide `Docs/SpssAnalysis.md`) |
 | PB-21 | Resume after interruption | The participant can take a break at any time; the headset may sleep or the app may be closed by accident. On restart the experiment resumes from the saved progress (participant, condition order, seed, completed trials). Pressing **Y** shows a dialog in the upper region asking whether to cancel this participant; cancel is **logged** (new CSV event), the CSV is never deleted. | Closed (done, see ADR-0004) |
 | PB-22 | System keyboard missing in standalone build | Participant ID can be entered on the headset | Closed: replaced by an on-screen number pad (cause of the system keyboard failure not found) |
 | PB-23 | CSV retrieval on macOS | MQDH cannot list the files; Windows Explorer can. Document a Mac path (adb pull) and test it | **Closed** (PO retrieved the CSV on a Mac) |
