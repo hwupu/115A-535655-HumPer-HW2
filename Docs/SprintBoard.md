@@ -21,6 +21,9 @@
 | PB-17 cardboard image | | |
 |  | | PB-18 Temp step kept as "Hot Fix" (closed) |
 | PB-20 analysis export | | |
+| PB-21 resume / cancel participant (Y dialog) | | |
+|  | | PB-22 number pad instead of system keyboard (closed); recenter follows (GUI + stimuli) |
+| PB-23 CSV retrieval on macOS | | |
 
 ## Working agreement
 - Small steps. Each step is verified headless before handoff: a copy of the project is run with Unity in batch mode (setup steps + EditMode tests), because the PO's editor is open on the real project.

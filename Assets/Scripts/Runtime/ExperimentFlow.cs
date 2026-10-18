@@ -58,12 +58,44 @@ namespace HumPer
             if (rig == null) rig = FindFirstObjectByType<OVRCameraRig>();
             gui.menu.Chosen += OnChosen;
             gui.Show(gui.menu.gameObject);
+            StartCoroutine(SubscribeRecenter());
         }
 
         void OnDestroy()
         {
             if (gui != null && gui.menu != null) gui.menu.Chosen -= OnChosen;
+            if (_recenterSource != null) _recenterSource.RecenteredPose -= OnRecentered;
             _log?.Dispose();
+        }
+
+        // ---- Recenter (long press of the Meta button): the GUI and the stimuli follow the new "forward" ----
+
+        OVRDisplay _recenterSource;
+        bool _recenterPending;
+
+        IEnumerator SubscribeRecenter()
+        {
+            while (OVRManager.display == null) yield return null; // created by OVRManager after its Awake
+            _recenterSource = OVRManager.display;
+            _recenterSource.RecenteredPose += OnRecentered;
+        }
+
+        void OnRecentered()
+        {
+            if (_recenterPending) return;
+            _recenterPending = true;
+            StartCoroutine(ApplyRecenter());
+        }
+
+        IEnumerator ApplyRecenter()
+        {
+            yield return null; // let tracking deliver the pose after the recenter
+            yield return null;
+            gui.PlaceAll();
+            stimuli.Replace(Head.position, Yaw);
+            acoustics.Replace(Head.position, Yaw);
+            _log?.Event("recenter");
+            _recenterPending = false;
         }
 
         void OnApplicationPause(bool paused)

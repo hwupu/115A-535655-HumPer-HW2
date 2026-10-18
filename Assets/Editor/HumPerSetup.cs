@@ -34,7 +34,7 @@ namespace HumPer.EditorTools
 
         // ---- Step 1: global illumination instead of a directional light ---------------------------------------
 
-        [MenuItem("HumPer/Step 1 - Lighting: Global Illumination (remove directional light)", priority = 1)]
+        [MenuItem("Magic/Step 1 - Lighting: Global Illumination (remove directional light)", priority = 1)]
         public static void SetupLighting()
         {
             int removed = 0;
@@ -77,7 +77,7 @@ namespace HumPer.EditorTools
 
         // ---- Step 2: room (walls, floor, ceiling, light) + Meta XR Audio shoebox ------------------------------
 
-        [MenuItem("HumPer/Step 2 - Room Setup...", priority = 2)]
+        [MenuItem("Magic/Step 2 - Room Setup...", priority = 2)]
         public static void OpenRoomDialog() => RoomSetupDialog.Open();
 
         /// <summary>Size of the existing room, or the default (8 wide, 10 deep, 3.5 high).</summary>
@@ -179,11 +179,10 @@ namespace HumPer.EditorTools
 
         // ---- Step 3: GUI (menu, language, practice instructions, head gate, practice result, HUD) -------------
 
-        [MenuItem("HumPer/Step 3 - GUI: Menu, language, practice screens, HUD (OVROverlayCanvas)", priority = 3)]
+        [MenuItem("Magic/Step 3 - GUI: Menu, language, practice screens, HUD (OVROverlayCanvas)", priority = 3)]
         public static void AddGui()
         {
             EnsureLayerName(GuiPanelPlacer.HiddenCanvasLayer, "HiddenOverlayCanvas");
-            EnableSystemKeyboard();
 
             var ui = Group(GroupUI);
             DestroyEverywhere("GUI");
@@ -205,16 +204,32 @@ namespace HumPer.EditorTools
 
             // --- stage 1: menu (experimenter, English only) ---
             var stage = Panel(go.transform, "Stage 1 - Menu", dark);
-            Label(stage, "Title", "Participant ID", 48, new Vector2(0, 240), new Vector2(800, 70));
-            var idButton = MakeButton(stage, "ID Field", "(tap to enter)", 44, new Vector2(0, 150), new Vector2(620, 100),
-                                      new Color(0.16f, 0.18f, 0.24f, 1f), out var idLabel);
-            var idField = idButton.gameObject.AddComponent<ParticipantIdField>();
+            Label(stage, "Title", "Participant ID", 44, new Vector2(0, 305), new Vector2(800, 60));
+            var idDisplay = new GameObject("ID Display", typeof(RectTransform), typeof(Image));
+            idDisplay.transform.SetParent(stage, false);
+            ((RectTransform)idDisplay.transform).anchoredPosition = new Vector2(0, 235);
+            ((RectTransform)idDisplay.transform).sizeDelta = new Vector2(620, 80);
+            idDisplay.GetComponent<Image>().color = new Color(0.16f, 0.18f, 0.24f, 1f);
+            idDisplay.GetComponent<Image>().raycastTarget = false;
+            var idLabel = Label(idDisplay.transform, "Label", "", 44, Vector2.zero, new Vector2(600, 70));
+            var idField = idDisplay.AddComponent<ParticipantIdField>();
             idField.label = idLabel;
-            idField.hint = Label(stage, "ID Hint", "", 24, new Vector2(0, 80), new Vector2(920, 50));
-            var start = MakeButton(stage, "Start Experiment", "Start Experiment", 38, new Vector2(-220, -50), new Vector2(400, 120), green, out _);
-            var debug = MakeButton(stage, "Debug", "Debug", 38, new Vector2(220, -50), new Vector2(400, 120),
+            // number pad: two rows of five digits, then backspace / clear
+            var pad = new Color(0.22f, 0.25f, 0.32f, 1f);
+            for (int slot = 0; slot < 10; slot++)
+            {
+                int digit = (slot + 1) % 10; // 1 2 3 4 5 / 6 7 8 9 0
+                var position = new Vector2((slot % 5 - 2) * 125f, slot < 5 ? 135f : 45f);
+                idField.digitButtons[digit] = MakeButton(stage, "Key " + digit, digit.ToString(), 44, position, new Vector2(110, 80), pad, out _);
+            }
+            idField.backspaceButton = MakeButton(stage, "Key Backspace", "<", 44, new Vector2(-135, -45), new Vector2(250, 80),
+                                                 new Color(0.42f, 0.32f, 0.12f, 1f), out _);
+            idField.clearButton = MakeButton(stage, "Key Clear", "Clear", 36, new Vector2(135, -45), new Vector2(250, 80),
+                                             new Color(0.42f, 0.18f, 0.18f, 1f), out _);
+            var start = MakeButton(stage, "Start Experiment", "Start Experiment", 36, new Vector2(-220, -165), new Vector2(400, 100), green, out _);
+            var debug = MakeButton(stage, "Debug", "Debug", 36, new Vector2(220, -165), new Vector2(400, 100),
                                    new Color(0.42f, 0.32f, 0.12f, 1f), out _);
-            var status = Label(stage, "Status", "", 30, new Vector2(0, -230), new Vector2(900, 80));
+            var status = Label(stage, "Status", "", 28, new Vector2(0, -280), new Vector2(900, 70));
             var menu = stage.gameObject.AddComponent<MenuStage>();
             menu.idField = idField;
             menu.startButton = start;
@@ -353,14 +368,6 @@ namespace HumPer.EditorTools
             t.text = Localization.Get(key);
         }
 
-        static void EnableSystemKeyboard()
-        {
-            var config = OVRProjectConfig.CachedProjectConfig;
-            if (config.requiresSystemKeyboard) return;
-            config.requiresSystemKeyboard = true; // lets Unity's TouchScreenKeyboard open the Quest system keyboard
-            OVRProjectConfig.CommitProjectConfig(config);
-        }
-
         static RectTransform Panel(Transform parent, string name, Color color)
         {
             var go = new GameObject(name, typeof(RectTransform), typeof(Image));
@@ -416,7 +423,7 @@ namespace HumPer.EditorTools
 
         const string StimulusClipSearch = "SFX-C-01";
 
-        [MenuItem("HumPer/Step 4 - Practice: stimulus controller + experiment flow", priority = 4)]
+        [MenuItem("Magic/Step 4 - Practice: stimulus controller + experiment flow", priority = 4)]
         public static void SetupPractice()
         {
             var refs = Object.FindFirstObjectByType<GuiRefs>(FindObjectsInactive.Include);
@@ -487,8 +494,8 @@ namespace HumPer.EditorTools
             Debug.Log("[HumPer] Practice stage wired (stimulus clip: " + (clip != null ? clip.name : "none") + ").");
         }
 
-        /// <summary>Logs every unassigned object reference on the HumPer components. Menu: HumPer/Validate Setup.</summary>
-        [MenuItem("HumPer/Validate Setup", priority = 101)]
+        /// <summary>Logs every unassigned object reference on the HumPer components. Menu: Magic/Validate Setup.</summary>
+        [MenuItem("Magic/Validate Setup", priority = 101)]
         public static void ValidateSetup()
         {
             int problems = 0;
@@ -541,7 +548,7 @@ namespace HumPer.EditorTools
         const float EyeLevelM = 1.2f;       // seated eye / ear height used for audio sources (runtime will use the real head height)
         const float StimulusRadiusM = 2f;     // experiment trials: audio, visual and background clips are all 2 m from the head
 
-        [MenuItem("HumPer/Hot Fix - Organize Hierarchy, Place Audio, Add Visual Cardboard", priority = 100)]
+        [MenuItem("Magic/Hot Fix - Organize Hierarchy, Place Audio, Add Visual Cardboard", priority = 100)]
         public static void OrganizeHierarchy()
         {
             var scene = EditorSceneManager.GetActiveScene();

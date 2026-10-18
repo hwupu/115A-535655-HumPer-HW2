@@ -15,6 +15,7 @@ Columns: `event, timestamp_local, elapsed_s, participant, mode, condition, trial
 | `experiment_end` | end of the experiment |
 | `debug_begin` / `condition` / `debug_end` | Debug test bench only |
 | `app_paused` | headset removed / app paused |
+| `recenter` | the Meta button was long-pressed; GUI and stimuli were re-placed around the new forward direction |
 
 - `mode`: `EXPERIMENT` or `DEBUG`. Timestamps are local time; `elapsed_s` counts from the start of the log.
 - `signed_error_deg` = audio_final - visual (positive: the audio ended to the right of the cardboard).

@@ -15,14 +15,24 @@ A seated participant rotates a white-noise sound source around them with the tri
 
 ## Quick start
 1. Clone, `git lfs pull`, open the project in Unity.
-2. Open `Assets/Scenes/ExperimentScene.unity`. It already contains the Meta Building Blocks (Camera Rig, Controller Tracking, 4 x Spatial Audio) and the generated setup. To rebuild the setup, see [Docs/SceneSetup.md](Docs/SceneSetup.md) (**HumPer** menu, Steps 1-4).
+2. Open `Assets/Scenes/ExperimentScene.unity`. It already contains the Meta Building Blocks (Camera Rig, Controller Tracking, 4 x Spatial Audio) and the generated setup. To rebuild the setup, see [Docs/SceneSetup.md](Docs/SceneSetup.md) (**Magic** menu, Steps 1-4).
 3. Play with Quest Link, or build for Android (File > Build Profiles > Meta Quest) and install on the headset.
 4. In the headset: enter the participant ID, then **Start Experiment** (hand over to the participant) or **Debug** (test bench: all functions, sphere and feedback).
 
 ## Data
 One CSV per session, flushed row by row. File name: `yyyyMMdd_HHmmss[_ParticipantID][_DEBUG].csv`.
-- Quest: `/sdcard/Android/data/com.nycu.humperhw2/files/` (pull with MQDH).
+- Quest: `/sdcard/Android/data/com.nycu.ventriloquist_hw2/files/`.
 - Editor / Quest Link (Windows): `%USERPROFILE%\AppData\LocalLow\NYCU\115A-535655-HumPer-HW2\`.
+
+### Getting the CSV files off the headset
+- **Windows:** connect the Quest by USB, allow data access in the headset, then browse to `This PC > Quest 3 > Internal shared storage > Android > data > com.nycu.ventriloquist_hw2 > files` in Explorer. MQDH (Device Manager > Files) may also work, but it failed to list this folder in our tests.
+- **macOS:** macOS does not mount a Quest as a drive. Use `adb` (USB cable, developer mode on, allow USB debugging in the headset):
+  ```
+  adb devices
+  adb pull /sdcard/Android/data/com.nycu.ventriloquist_hw2/files/ ./HW2-data
+  ```
+  `adb` is in Unity's Android tools (`<Unity install>/PlaybackEngines/AndroidPlayer/SDK/platform-tools/adb`) or via Homebrew (`brew install --cask android-platform-tools`). OpenMTP (free) can browse the same folder as an alternative. **Not yet tested on a Mac** (PB-23); test with one real file before the first participant.
+- Copy the files after every session; do not rely on the headset as the only copy.
 
 Schema: [Docs/DataFormat.md](Docs/DataFormat.md). Every row is also printed to the Unity console (`[HumPer] ...`).
 

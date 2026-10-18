@@ -60,6 +60,12 @@ namespace HumPer
                       (noisy ? ", background " + _backgroundDbfs.ToString("0.0") + " dBFS" : ""));
         }
 
+        /// <summary>After a headset recenter: move the running backgrounds around the new head position / yaw.</summary>
+        public void Replace(Vector3 headPosition, Quaternion yaw)
+        {
+            if (_backgroundOn) PlaceBackground(headPosition, yaw);
+        }
+
         public void StopAll()
         {
             _backgroundOn = false;

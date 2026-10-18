@@ -17,7 +17,7 @@ Written from the lessons of the first project (HW2, ventriloquist effect). Its f
 ## 2. Engineering rules
 1. **Verify before handoff.** The PO usually has Unity open on the project, and batch mode cannot open an open project. So copy `Assets`, `Packages`, `ProjectSettings` to a temp folder (first import is slow; reuse it) and run Unity there with `-batchmode -nographics`: compile, `-executeMethod` the setup steps, run EditMode tests. Fix every compile error and failing test before reporting. Check the saved scene afterwards (objects exist, references assigned, layers, positions).
 2. **Pure logic goes in a Unity-free assembly** (asmdef with no engine references): trial planning, math, localization table, CSV log (inject the clock and writer). Unit-test it (EditMode). Keep the Unity layer thin.
-3. **Scene setup by Editor scripts, never at runtime.** Provide a menu (e.g. **HumPer**): first one **reset/build** command; once stable, split into **steps** (lighting, room, GUI, wiring) that are idempotent, edit only the open scene, and never touch Meta Building Blocks the PO added by hand. Keep a **Hot Fix** step for corrections after scene changes (regroup hierarchy, re-place objects). Never edit scene YAML while the editor is open.
+3. **Scene setup by Editor scripts, never at runtime.** Provide a menu (default name **Magic**, e.g. **Magic > Step 1 ...**): first one **reset/build** command; once stable, split into **steps** (lighting, room, GUI, wiring) that are idempotent, edit only the open scene, and never touch Meta Building Blocks the PO added by hand. Keep a **Hot Fix** step for corrections after scene changes (regroup hierarchy, re-place objects). Never edit scene YAML while the editor is open.
 4. **Helper tools to keep building:** a **Validate Setup** menu (lists unassigned references), a headless entry point that runs all steps, on-screen diagnostics for things that fail silently (see keyboard), and console logging with a common prefix.
 5. **Check SDK source before using an API.** Meta packages are in `Library/PackageCache`; read the real class and field names, do not guess. When SDK limits matter (presets only, legacy Input), say so.
 6. Keep a clean hierarchy with root groups (XR, Audio, Stimuli, Experiment, Environment, UI), identity transforms.
@@ -29,7 +29,8 @@ Written from the lessons of the first project (HW2, ventriloquist effect). Its f
 - **GUI under single-pass stereo:** use `OVROverlayCanvas`. Its source canvas must sit on a **hidden layer** (e.g. 30) that the eye cameras do not render (also remove the overlay render layer, 31, from their culling masks), otherwise a second copy is drawn in the scene, in one eye only. Set the layer recursively after the hierarchy is built. Re-place the canvas after recenter.
 - **Any in-scene visual** (laser line, markers) must use a shader that supports single-pass stereo: use URP Unlit/Lit from a **material asset** referenced by the component (so it is included in the build). `Sprites/Default` renders in the left eye only.
 - **Pointer / UI input:** with "Input System only", Meta's `OVRInputModule` fails (it calls the legacy `Input`). Use your own ray-versus-rectangle hit test on `Selectable`s, `OVRInput` for triggers, and start the ray at the controller model's `laser_begin` (from the Controller Tracking block). Show the laser only while interactive UI exists. Hover via `Selectable.OnPointerEnter/Exit`, click via `Button.onClick`.
-- **Text input (participant ID):** Quest system keyboard through Unity `TouchScreenKeyboard`, with "Requires System Keyboard" in the Oculus project config and a **build made after** that setting (manifest feature `oculus.software.overlay_keyboard`). It does not exist in the Editor or over Quest Link: provide a PC-keyboard fallback, show a hint line saying which path is used, allow retry, handle `Open` returning null.
+- **Text input (participant ID):** do **not** depend on the Quest system keyboard. Unity's `TouchScreenKeyboard` with "Requires System Keyboard" (manifest feature `oculus.software.overlay_keyboard`) worked in one build and later returned a "visible" keyboard that the headset never showed (no input-focus change), with manifest, focus awareness and target SDK all correct. Use an **on-screen number pad / keypad** on the GUI, driven by the same ray pointer; IDs are short. It also works over Quest Link and in the Editor.
+- **Recenter:** the participant or experimenter may long-press the Meta button at any time. Subscribe to `OVRManager.display.RecenteredPose` (wait for `OVRManager.display` to exist), wait two frames, then re-place the GUI, the stimuli (same azimuths) and any placed audio sources around the new head position and yaw. Log it.
 - **Tracking:** floor-level origin. Head tracking reports (0,0,0) for the first frames: wait for a valid head height before placing UI. Recenter at session start and place UI after. Before every trial require the head to face forward (yaw and pitch tolerance, hold time) with a small fixation cue; capture the trial origin then.
 - **Conventions:** azimuth 0 = forward, negative = left, positive = right; position = origin + yaw * (r sin az, 0, r cos az). Put visual and audio stimuli at the **same height** (eye level) unless the brief says otherwise; mismatched heights feel wrong.
 - **Audio:**
@@ -52,12 +53,12 @@ Written from the lessons of the first project (HW2, ventriloquist effect). Its f
 0. Repo: `.gitignore`, LFS, initial commit.
 1. Rig via Building Blocks; lighting step.
 2. Room step (dialog; visual room + shoebox).
-3. GUI shell: overlay canvas, pointer, keyboard, menu screen. **PO headset test** (visibility, height, ray, keyboard).
+3. GUI shell: overlay canvas, pointer, number pad, menu screen. **PO headset test** (visibility, height, ray, number pad, recenter).
 4. Stimuli and the trial task, plus the Debug test bench. **PO headset test.**
 5. Practice stage (language, instructions, gate), logging, unit tests.
 6. Conditions and the experiment stage.
 7. Docs (README, design, setup, data format, ADRs, prompt log, backlog), Validate Setup.
-8. Standalone Android build test on the headset (keyboard, CSV in MQDH, performance); calibration measurements (levels, RT60).
+8. Standalone Android build test on the headset (CSV retrieval, performance); calibration measurements (levels, RT60).
 
 ## 6. Discovery checklist: ask the PO before coding
 Research question and hypothesis; independent variables (conditions) and dependent measure; task type (adjustment, forced choice, ...) and confirm button; stimuli (type, size, height, distance, positions, forbidden values, assets to be provided); conditions (order fixed or counterbalanced across participants), trials per condition, practice design (different geometry from trials?); room (size, materials, target RT60, lighting, distractors); audio (clips, loudness target, headset-volume protocol, background design: spatial or not, SNR definition and who measures it); GUI policy per phase; interface languages and fonts; participant ID entry and how data is retrieved; log fields; experimenter tools (Debug meaning: test bench vs run with feedback); platforms (Windows/Mac, Link vs standalone, package id); what the PO can measure (level meter, luminance meter); anything that can only be verified on the headset.
@@ -66,7 +67,6 @@ Research question and hypothesis; independent variables (conditions) and depende
 - Absolute luminance is not reachable or controllable.
 - A named material (e.g. concrete) and a target RT60 conflict in most rooms.
 - An absolute level plus an SNR requires measurement at the ear; software levels are only relative.
-- The system keyboard works only in a standalone build.
 - Anything the brief says that depends on the headset volume, the room size or the SDK version.
 
 ---

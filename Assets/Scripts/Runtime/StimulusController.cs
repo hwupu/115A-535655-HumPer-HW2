@@ -20,6 +20,7 @@ namespace HumPer
         Vector3 _origin;
         Quaternion _yaw = Quaternion.identity;
         float _radius = 1f;
+        float _visualAz, _audioAz;
 
         /// <summary>Level of the audio stimulus in the software chain: clip RMS (dBFS) + the Meta gain boost value. Volume stays at unity.</summary>
         public float LevelDbfs { get; private set; } = -200f;
@@ -43,6 +44,7 @@ namespace HumPer
             _origin = headPosition;
             _yaw = yawReference;
             _radius = radiusM;
+            _visualAz = visualAzDeg;
 
             var (vx, vz) = PolarMath.ToXZ(visualAzDeg, radiusM);
             Vector3 vp = _origin + _yaw * new Vector3(vx, 0f, vz);
@@ -54,8 +56,16 @@ namespace HumPer
             SetAudioAzimuth(audioAzDeg);
         }
 
+        /// <summary>After a headset recenter: keep the same azimuths but rebuild the circle around the new head position / yaw.</summary>
+        public void Replace(Vector3 headPosition, Quaternion yawReference)
+        {
+            Begin(headPosition, yawReference, _radius, _visualAz, _audioAz);
+            if (debugSphere.gameObject.activeSelf) SyncDebugSphere();
+        }
+
         public void SetAudioAzimuth(float azDeg)
         {
+            _audioAz = azDeg;
             var (x, z) = PolarMath.ToXZ(azDeg, _radius);
             audioSource.transform.position = _origin + _yaw * new Vector3(x, 0f, z);
         }
