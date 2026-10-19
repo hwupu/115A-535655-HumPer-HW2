@@ -16,7 +16,7 @@
 | To Do | Doing | Done |
 |---|---|---|
 | | | PB-14 reverb material (superseded), PB-15 RT60 measurement tool (closed) |
-| PB-17 cardboard image (PO to provide) | | PB-16 standalone headset test |
+| | | PB-31 onboarding slides, PB-17 cardboard image (radio), PB-16 standalone headset test |
 | | | PB-20 analysis export (script + SPSS guide), PB-18 "Hot Fix" step, PB-21 resume / cancel |
 | | | PB-22 number pad, PB-23 CSV retrieval on macOS (PO retrieved it), PB-24 setup instructions |
 | | | PB-25 controller labels (tried, reverted), PB-26 fixed backgrounds, PB-27 stimulus pulse |

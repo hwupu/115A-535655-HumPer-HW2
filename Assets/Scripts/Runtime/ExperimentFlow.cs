@@ -246,30 +246,15 @@ namespace HumPer
             yield return RecenterAndPlaceGui();
 
             // ---- language ----
-            if (!_progress.LanguageChosen)
-            {
-                gui.Show(gui.languagePanel);
-                Button picked = null;
-                yield return WaitForAny(b => picked = b, gui.chineseButton, gui.englishButton);
-                _progress.Language = picked == gui.chineseButton ? Language.ChineseTaiwan : Language.English;
-                _progress.LanguageChosen = true;
-                _store.Save(_progress);
-                Localization.Set(_progress.Language);
-                _log.Event("language", _progress.Language.ToString());
-            }
+            if (!_progress.LanguageChosen) yield return ChooseLanguage();
             else Localization.Set(_progress.Language);
 
             // ---- practice, as many trials as the participant likes ----
             bool practiceWasDone = _progress.PracticeDone;
             if (!practiceWasDone)
             {
-                // the headset was probably set up standing and handed over: recenter, then the IPD dial
-                yield return ShowSetupStep("setup_recenter");
-                yield return ShowSetupStep("setup_ipd");
-
-                gui.Show(gui.introPanel);
-                yield return WaitForAny(_ => { }, gui.startPracticeButton);
-                yield return ShowSetupStep("setup_dot"); // then the first trial starts with the fixation dot (head gate)
+                // the headset was probably set up standing and handed over: recenter, IPD dial, procedure, controllers, then the first trial starts with the fixation dot (head gate)
+                yield return RunOnboarding();
 
                 _log.ConditionEvent("practice_begin", "practice");
                 int number = 0;
@@ -352,14 +337,33 @@ namespace HumPer
             gui.Show(gui.thanksPanel);
         }
 
-        /// <summary>One instruction screen before the practice (key from the localization table) with a Continue button.</summary>
-        IEnumerator ShowSetupStep(string key)
+        /// <summary>The language screen; the choice is saved with the progress and logged.</summary>
+        IEnumerator ChooseLanguage()
         {
-            gui.setupText.key = key;
-            gui.setupText.Refresh();
-            gui.Show(gui.setupPanel);
-            yield return WaitForAny(_ => { }, gui.setupContinueButton);
-            _log.Event("setup_step", key);
+            gui.Show(gui.languagePanel);
+            Button picked = null;
+            yield return WaitForAny(b => picked = b, gui.chineseButton, gui.englishButton);
+            _progress.Language = picked == gui.chineseButton ? Language.ChineseTaiwan : Language.English;
+            _progress.LanguageChosen = true;
+            _store.Save(_progress);
+            Localization.Set(_progress.Language);
+            _log.Event("language", _progress.Language.ToString());
+        }
+
+        /// <summary>The onboarding slides: back / forward until the last slide is confirmed. Every slide shown is logged (setup_step).</summary>
+        IEnumerator RunOnboarding()
+        {
+            int slide = 0;
+            while (slide < Onboarding.SlideCount)
+            {
+                gui.Show(gui.onboarding.gameObject);
+                gui.onboarding.Show(slide);
+                _log.Event("setup_step", "onboarding_slide_" + (slide + 1));
+                Button clicked = null;
+                yield return WaitForAny(b => clicked = b, gui.onboarding.backButton, gui.onboarding.forwardButton);
+                if (clicked == gui.onboarding.backButton && slide == 0) { yield return ChooseLanguage(); continue; } // the left button of slide 1 reopens the language choice
+                slide = Onboarding.Move(slide, clicked == gui.onboarding.backButton ? -1 : 1);
+            }
         }
 
         // ==== Debug test bench ====================================================================================

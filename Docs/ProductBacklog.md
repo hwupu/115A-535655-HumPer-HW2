@@ -20,7 +20,7 @@ Product Owner: researcher. Status: Done / Open / Closed (won't do or accepted).
 | PB-14 | Reverb material | Choose a shoebox material for RT60 0.7 s (and 0.2 s); verify by measurement | Closed: superseded by RT60 set directly per condition (0.2 / 0.7 / 2.2 s, calculated), see PB-29; measuring the real RT60 (PB-15) is still recommended |
 | PB-15 | RT60 measurement tool | Debug bench button and a measurement at the start of every condition block; measured T20 logged with every trial (`rt60_measured_s`); coefficient table calibrated by measurement | Closed |
 | PB-16 | Standalone headset test | Build and run the APK on Quest 3 (only Quest Link tested so far); verify keyboard, CSV in MQDH | **Open** |
-| PB-17 | Cardboard image | Replace the placeholder with the real image | **Open** (PO to provide) |
+| PB-17 | Cardboard image | The radio picture (`Assets/Images/Radio.jpg`) on the cardboard: unlit, 0.25 m wide, keeps the picture aspect (about 0.21 m high). Applied by Step 4 / Hot Fix (`ApplyCardboardImage`) | Closed (tested on the Quest) |
 | PB-18 | "Temp" step | Keep it as the "Hot Fix" step (renamed) | Closed (kept as Hot Fix) |
 | PB-19 | Docs and README | README, design, setup, data format, decisions, prompt log, backlog | Done |
 | PB-20 | Analysis export | Aggregate CSVs per participant | **Closed** (`Tools/prepare_for_spss.sh`, guide `Docs/SpssAnalysis.md`) |
@@ -34,6 +34,7 @@ Product Owner: researcher. Status: Done / Open / Closed (won't do or accepted).
 | PB-28 | Debug: reverb time and playback tests | Buttons for reverb 0.3 / 0.7 / 2.2 s (= Quiet / Noisy / Reverb), preset (Concrete), play stimulus, play / pause the background noise in any condition | Closed |
 | PB-29 | Protocol change: acoustics per condition | Quiet RT60 0.3 s (PO decision after the measurement); Noisy RT60 0.7 s + background; Reverb RT60 2.2 s + background continues; order Quiet, Noisy, Reverb; practice = Quiet (ADR-0005) | Closed |
 | PB-30 | Default room size | 8.72 x 3.5 x 15 m (width x height x depth, as in previous studies of the lab); rebuild the room with Step 2 | Closed |
+| PB-31 | Onboarding slides before the practice | Six pictures per language (reposition, set IPD, procedure, controllers, trials, ready) with back / forward buttons in the empty bottom strip; replaces the intro and setup text screens (PB-24). Each slide shown is logged as `setup_step` | Closed (tested on the Quest) |
 
 ## PB-14 findings and recommendation (2026-10-18, calculated, not measured)
 - **Finding:** Meta's Concrete preset (mean reflection coefficient 0.98) would give an RT60 of about 4.7 s (reflection coefficient read as amplitude) or about 9.4 s (read as energy) in the 8 x 10 x 3.5 m room. This was calculated (Sabine and Eyring formulas on the preset coefficients), not measured in software; Meta does not say which reading applies, and its own late-reverb model may differ. The 6 x 6 room figure of "about 3 s" quoted earlier was a rough estimate and should be ignored.

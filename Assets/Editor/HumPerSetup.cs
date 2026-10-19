@@ -132,6 +132,16 @@ namespace HumPer.EditorTools
             area.intensity = 2f;
             area.shadows = LightShadows.None;
 
+            // The baked room gets no useful bounce light onto the underside of the ceiling (it baked black), so a second, fainter area light faces up and lights it directly.
+            var ceilingFill = new GameObject("Ceiling Fill Light").AddComponent<Light>();
+            ceilingFill.transform.SetParent(lighting.transform, false);
+            ceilingFill.transform.SetPositionAndRotation(new Vector3(0f, h - 0.4f, 0f), Quaternion.Euler(-90f, 0f, 0f)); // faces up (closer to the ceiling gives a sharper dark line where the walls meet it)
+            ceilingFill.type = LightType.Rectangle;
+            ceilingFill.areaSize = area.areaSize;
+            ceilingFill.lightmapBakeType = LightmapBakeType.Baked;
+            ceilingFill.intensity = 1f;
+            ceilingFill.shadows = LightShadows.None;
+
             var probes = new GameObject("Light Probes").AddComponent<LightProbeGroup>();
             probes.transform.SetParent(lighting.transform, false);
             var positions = new List<Vector3>();
@@ -246,20 +256,26 @@ namespace HumPer.EditorTools
             refs.englishButton = MakeButton(lang, "English", "English", 48, new Vector2(230, -100), new Vector2(400, 140), gray, out _);
             refs.languagePanel = lang.gameObject;
 
-            // --- practice instructions ---
-            var intro = Panel(go.transform, "Practice - Instructions", dark);
-            LocalizedLabel(intro, "Text", "practice_intro", 40, new Vector2(0, 70), new Vector2(880, 460));
-            refs.startPracticeButton = MakeButton(intro, "Start Practice", "", 42, new Vector2(0, -270), new Vector2(460, 100), green, out var startLabel);
-            LocalizeLabel(startLabel, "practice_start");
-            refs.introPanel = intro.gameObject;
-
-            // --- setup instructions before the practice (recenter, IPD, look at the dot); one panel, the text key changes per step ---
-            var setup = Panel(go.transform, "Practice - Setup Instructions", dark);
-            var setupText = LocalizedLabel(setup, "Text", "setup_recenter", 40, new Vector2(0, 70), new Vector2(880, 460));
-            refs.setupText = setupText.GetComponent<LocalizedText>();
-            refs.setupContinueButton = MakeButton(setup, "Continue", "", 42, new Vector2(0, -270), new Vector2(400, 100), green, out var setupContinueLabel);
-            LocalizeLabel(setupContinueLabel, "continue");
-            refs.setupPanel = setup.gameObject;
+            // --- onboarding before the practice: full-canvas slide pictures (2000 x 1400, empty 200 px strip at the bottom) with back / forward buttons ---
+            // canvas units: 1 unit = 2 image px; the pictures keep their bottom 200 px (100 units) empty for the buttons
+            var onboarding = Panel(go.transform, "Practice - Onboarding", dark);
+            var slideGo = new GameObject("Slide", typeof(RectTransform), typeof(Image));
+            slideGo.transform.SetParent(onboarding, false);
+            var slideRt = (RectTransform)slideGo.transform;
+            slideRt.anchorMin = Vector2.zero;
+            slideRt.anchorMax = Vector2.one;
+            slideRt.offsetMin = slideRt.offsetMax = Vector2.zero;
+            slideGo.GetComponent<Image>().raycastTarget = false;
+            var onb = onboarding.gameObject.AddComponent<OnboardingPanel>();
+            onb.slideImage = slideGo.GetComponent<Image>();
+            var buttonBox = new Vector2(260f, 80f);
+            const float padding = 50f; // canvas units from the bottom and the sides (the picture's empty strip is 100 units high, so the buttons rise 30 units into it)
+            const float buttonY = -350f + padding + 40f, buttonX = 500f - padding - 130f;
+            onb.backButton = MakeButton(onboarding, "Back", "", 30, new Vector2(-buttonX, buttonY), buttonBox, gray, out onb.backLabel);
+            onb.forwardButton = MakeButton(onboarding, "Forward", "", 30, new Vector2(buttonX, buttonY), buttonBox, green, out onb.forwardLabel);
+            onb.englishSlides = LoadSlides("en");
+            onb.chineseSlides = LoadSlides("zh");
+            refs.onboarding = onb;
 
             // --- head alignment gate: no background, just a fixation dot at the center (straight ahead) ---
             var gate = new GameObject("Gate - Look Straight Ahead", typeof(RectTransform));
@@ -396,6 +412,46 @@ namespace HumPer.EditorTools
             Debug.Log("[HumPer] GUI built under '" + GroupUI + "' (menu, language, practice screens, HUD).");
         }
 
+        const string ImagesDir = "Assets/Images";
+
+        /// <summary>The six onboarding pictures of a language (files "xx-1-....jpg" to "xx-6-....jpg" in Assets/Images), imported as sprites.</summary>
+        static Sprite[] LoadSlides(string prefix)
+        {
+            var sprites = new Sprite[Onboarding.SlideCount];
+            for (int i = 0; i < sprites.Length; i++)
+            {
+                string path = AssetDatabase.FindAssets(prefix + "-" + (i + 1), new[] { ImagesDir }).Select(AssetDatabase.GUIDToAssetPath)
+                    .FirstOrDefault(p => System.IO.Path.GetFileName(p).StartsWith(prefix + "-" + (i + 1) + "-"));
+                if (path == null) { Debug.LogError("[HumPer] Onboarding picture " + prefix + "-" + (i + 1) + "-*.jpg not found in " + ImagesDir); continue; }
+                ImportImage(path, sprite: true);
+                sprites[i] = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            }
+            return sprites;
+        }
+
+        /// <summary>Import settings for the pictures: no mipmaps, no power-of-two resize, ASTC 4x4 on the headset (thin white lines on a dark background need the quality).</summary>
+        static void ImportImage(string path, bool sprite)
+        {
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) return;
+            bool changed = false;
+            var wantedType = sprite ? TextureImporterType.Sprite : TextureImporterType.Default;
+            if (importer.textureType != wantedType) { importer.textureType = wantedType; changed = true; }
+            if (importer.mipmapEnabled) { importer.mipmapEnabled = false; changed = true; }
+            if (importer.npotScale != TextureImporterNPOTScale.None) { importer.npotScale = TextureImporterNPOTScale.None; changed = true; } // else 800 x 669 becomes 1024 x 512
+            if (importer.isReadable) { importer.isReadable = false; changed = true; }
+            var android = importer.GetPlatformTextureSettings("Android");
+            if (!android.overridden || android.format != TextureImporterFormat.ASTC_4x4 || android.maxTextureSize != 2048)
+            {
+                android.overridden = true;
+                android.maxTextureSize = 2048;
+                android.format = TextureImporterFormat.ASTC_4x4;
+                importer.SetPlatformTextureSettings(android);
+                changed = true;
+            }
+            if (changed) importer.SaveAndReimport();
+        }
+
         static Text LocalizedLabel(Transform parent, string name, string key, int size, Vector2 pos, Vector2 box)
         {
             var t = Label(parent, name, "", size, pos, box);
@@ -475,6 +531,7 @@ namespace HumPer.EditorTools
             if (refs == null) { Debug.LogError("[HumPer] Run Step 3 (GUI) first."); return; }
             if (rig == null) { Debug.LogError("[HumPer] No OVRCameraRig: add the Camera Rig building block."); return; }
             if (box == null || audio == null) { Debug.LogError("[HumPer] Run the Temp step first (visual box + spatial audio placement)."); return; }
+            ApplyCardboardImage();
 
             var group = Group(GroupExperiment);
             DestroyEverywhere("Stimulus Controller");
@@ -745,7 +802,7 @@ namespace HumPer.EditorTools
             }
         }
 
-        /// <summary>Placeholder cardboard (image to be added later): 0.25 m wide x 0.2 m high, centered at eye level, straight ahead, facing the participant.</summary>
+        /// <summary>Cardboard (the picture is applied by ApplyCardboardImage): 0.25 m wide x about 0.21 m high, centered at eye level, straight ahead, facing the participant.</summary>
         static void AddVisualStimulusBox()
         {
             DestroyEverywhere(VisualBoxName);
@@ -758,6 +815,33 @@ namespace HumPer.EditorTools
             box.GetComponent<Renderer>().sharedMaterial = Mat("Visual_Cardboard", new Color(0.78f, 0.65f, 0.45f));
             Object.DestroyImmediate(box.GetComponent<Collider>());
             box.SetActive(false); // hidden at the beginning; the experiment shows it per trial
+            ApplyCardboardImage();
+        }
+
+        const string CardboardImagePath = "Assets/Images/Radio.jpg";
+        const float CardboardWidthM = 0.25f;
+
+        /// <summary>
+        /// Puts the picture (Assets/Images/Radio.jpg) on the cardboard: unlit, so the room lighting does not change it, and the cardboard
+        /// keeps the picture's aspect ratio (0.25 m wide). The picture is on the face that points at the participant.
+        /// </summary>
+        static void ApplyCardboardImage()
+        {
+            var box = FindByName(VisualBoxName);
+            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(CardboardImagePath);
+            if (box == null) { Debug.LogWarning("[HumPer] No cardboard in the scene; run the Hot Fix step first."); return; }
+            if (texture == null) { Debug.LogWarning("[HumPer] Cardboard picture " + CardboardImagePath + " not found; the cardboard stays plain."); return; }
+            ImportImage(CardboardImagePath, sprite: false);
+            texture = AssetDatabase.LoadAssetAtPath<Texture2D>(CardboardImagePath);
+            var material = Mat("Visual_Radio", Color.white, unlit: true);
+            material.SetTexture("_BaseMap", texture);
+            EditorUtility.SetDirty(material);
+            box.GetComponent<Renderer>().sharedMaterial = material;
+            var importer = (TextureImporter)AssetImporter.GetAtPath(CardboardImagePath);
+            importer.GetSourceTextureWidthAndHeight(out int pixelsWide, out int pixelsHigh);
+            box.transform.localScale = new Vector3(CardboardWidthM, CardboardWidthM * pixelsHigh / pixelsWide, 0.01f);
+            EditorUtility.SetDirty(box);
+            MarkSceneDirty();
         }
 
         // ---- helpers ------------------------------------------------------------------------------------------
@@ -839,6 +923,17 @@ namespace HumPer.EditorTools
         }
 
         static void MarkSceneDirty() => EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+
+        /// <summary>Headless entry for GUI-only changes: rebuilds the GUI (Step 3) and rewires the flow (Step 4); no re-bake.</summary>
+        public static void RunGuiHeadless()
+        {
+            EditorSceneManager.OpenScene("Assets/Scenes/ExperimentScene.unity");
+            AddGui();
+            SetupPractice();
+            ValidateSetup();
+            EditorSceneManager.SaveOpenScenes();
+            AssetDatabase.SaveAssets();
+        }
 
         /// <summary>Headless entry for verification: runs every step on the Experiment scene and saves it.</summary>
         public static void RunAllHeadless()

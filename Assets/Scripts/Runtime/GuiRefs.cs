@@ -11,11 +11,7 @@ namespace HumPer
         public MenuStage menu;                  // stage 1
         public GameObject languagePanel;        // stage 2
         public Button chineseButton, englishButton;
-        public GameObject introPanel;           // practice instructions
-        public Button startPracticeButton;
-        public GameObject setupPanel;           // recenter / IPD / look-at-the-dot instructions before the practice
-        public LocalizedText setupText;
-        public Button setupContinueButton;
+        public OnboardingPanel onboarding;      // slides before the practice: reposition, IPD, procedure, controllers, trials, ready
         public GameObject gatePanel;            // "look straight ahead" fixation dot (no background)
         public GameObject gateHint;
         public GameObject resultPanel;          // practice again / ready
@@ -48,7 +44,7 @@ namespace HumPer
         void Awake()
         {
             LocalizedText.CjkFont = cjkFont;
-            _panels = new[] { menu.gameObject, languagePanel, introPanel, setupPanel, gatePanel, resultPanel, blockDonePanel, thanksPanel, debugPanel.gameObject, resumePanel };
+            _panels = new[] { menu.gameObject, languagePanel, onboarding.gameObject, gatePanel, resultPanel, blockDonePanel, thanksPanel, debugPanel.gameObject, resumePanel };
             HideAll();
             if (cancelPanel != null) cancelPanel.SetActive(false);
             ShowHud(null);

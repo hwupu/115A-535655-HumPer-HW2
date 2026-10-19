@@ -18,7 +18,7 @@ Columns: `event, timestamp_local, elapsed_s, participant, mode, condition, trial
 | `recenter` | the Meta button was long-pressed; GUI and stimuli were re-placed around the new forward direction |
 | `rt60_measured` | reverberation time measured from an impulse response of the rendered audio (note: condition, target, T20, T30, depth of the decay in dB); at the start of every condition block and on the Debug "Measure RT60" button |
 | `reverb` | Debug only: reverb setting changed (note: RT60 target and coefficient, or preset) |
-| `setup_step` | a pre-practice instruction screen was confirmed (note: `setup_recenter`, `setup_ipd`, `setup_dot`) |
+| `setup_step` | an onboarding slide was shown before the practice (note: `onboarding_slide_1` to `onboarding_slide_6`; going back logs the earlier slide again) |
 | `session_resume` / `resume` | an interrupted session was continued (appended to the same CSV; note: position, e.g. `Reverb, 3 of 6 trials done`) |
 | `app_resumed` | app back from pause |
 | `participant_cancelled` | the experimenter cancelled the participant (Y button, or "Start new" over an unfinished session); the session cannot be resumed |

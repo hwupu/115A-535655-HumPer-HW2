@@ -121,9 +121,9 @@ namespace HumPer.Tests
             Action handler = () => changes++;
             Localization.Changed += handler;
             Localization.Set(Language.ChineseTaiwan);
-            Assert.AreEqual("開始練習", Localization.Get("practice_start"));
+            Assert.AreEqual("繼續", Localization.Get("continue"));
             Localization.Set(Language.English);
-            Assert.AreEqual("Start practice", Localization.Get("practice_start"));
+            Assert.AreEqual("Continue", Localization.Get("continue"));
             Localization.Changed -= handler;
             Assert.AreEqual(2, changes);
             Assert.AreEqual("[nope]", Localization.Get("nope"));
@@ -185,15 +185,38 @@ namespace HumPer.Tests
         }
 
         [Test]
-        public void Localization_HasSetupInstructions_InBothLanguages()
+        public void Onboarding_ButtonsNameTheSlideTheyLeadTo_InBothLanguages()
         {
             foreach (var language in new[] { Language.English, Language.ChineseTaiwan })
             {
                 Localization.Set(language);
-                foreach (var key in new[] { "setup_recenter", "setup_ipd", "setup_dot" })
-                    Assert.IsFalse(Localization.Get(key).StartsWith("["), key + " missing in " + language);
+                for (int i = 0; i < Onboarding.SlideCount; i++)
+                {
+                    Assert.IsFalse(Onboarding.RightLabel(i).Contains("["), "right label of slide " + i + " missing in " + language);
+                    if (Onboarding.HasLeft(i)) Assert.IsFalse(Onboarding.LeftLabel(i).Contains("["), "left label of slide " + i + " missing in " + language);
+                }
+                // the back button of a slide names the slide before it, like the forward button of the slide before that (slide 1 and 2 are special: "Next", "Previous")
+                for (int i = 3; i < Onboarding.SlideCount; i++)
+                    Assert.AreEqual(Onboarding.RightLabel(i - 2).Replace(" →", ""), Onboarding.LeftLabel(i).Replace("← ", ""), "slide " + i);
             }
             Localization.Set(Language.English);
+            Assert.IsTrue(Onboarding.HasLeft(0));
+            Assert.AreEqual("Language", Onboarding.LeftLabel(0)); // slide 1: opens the language choice, no arrow
+            Assert.AreEqual("Next →", Onboarding.RightLabel(0));
+            Assert.AreEqual("Next →", Onboarding.RightLabel(4));
+            Assert.AreEqual("Begin Practice", Onboarding.RightLabel(Onboarding.SlideCount - 1)); // the last one ends the onboarding, no arrow
+            Localization.Set(Language.ChineseTaiwan);
+            Assert.AreEqual("設定瞳距", Onboarding.LeftLabel(2).Replace("← ", ""));
+            Localization.Set(Language.English);
+        }
+
+        [Test]
+        public void Onboarding_Move_StaysInRange_AndEndsAfterTheLastSlide()
+        {
+            Assert.AreEqual(0, Onboarding.Move(0, -1));
+            Assert.AreEqual(3, Onboarding.Move(2, 1));
+            Assert.AreEqual(1, Onboarding.Move(2, -1));
+            Assert.AreEqual(Onboarding.SlideCount, Onboarding.Move(Onboarding.SlideCount - 1, 1));
         }
 
         [Test]
